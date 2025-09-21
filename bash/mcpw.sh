@@ -1,4 +1,9 @@
 #!/bin/bash
+function errorUsage() {
+    echo "USAGE: $0 [-t/--toolsSpecJason jsonToolsConfig] \
+[TODO: -r/--resourcesSpecJson jsonResourcesConfig] [TODO: -p/--promptsSpecJson jsonPromptsConfig]" >&2
+    exit 1
+}
 function debugLog() {
     if [[ -n "$DEBUG" ]]; then
         echo "$@" >&2
@@ -13,16 +18,14 @@ while [[ $# -gt 0 ]]; do
       SERVER_NAME="$2"
       shift; shift;;
     -r|--resourcesSpecJson)
-      echo "Not implemented yet" >&2 && exit 1;;      
+      echo "Not implemented yet" >&2 && errorUsage;;      
     -p|--promptsSpecJson)
-      echo "Not implemented yet" >&2 && exit 1;;
+      echo "Not implemented yet" >&2 && errorUsage;;
     -d|--debug)
       DEBUG="true"
       shift;;   
     *)
-      echo "USAGE: $0 [-t/--toolsSpecJason jsonToolsConfig] [TODO: -r/--resourcesSpecJson jsonResourcesConfig] [TODO: -p/--promptsSpecJson jsonPromptsConfig]" >&2
-      exit 1
-      ;;
+      echo "Invalid option: $1" >&2 && errorUsage;;
   esac
 done
 
@@ -38,7 +41,9 @@ if [[ -n "$TOOLS_SPEC_JSON" ]]; then
         tool_name=$(echo "$tool_json" | jq -r '.mcpToolSpec.name' 2>/dev/null)
         tool_mcp_spec_map["$tool_name"]=$(echo "$tool_json" | jq -cr '.mcpToolSpec' 2>/dev/null)
         tool_commands_map["$tool_name"]=$(echo "$tool_json" | jq -r '.command' 2>/dev/null)
-        tool_command_param_mapping_map["$tool_name"]=$(echo "$tool_json" | jq -cr '.commandParamMapping | reduce .[] as $item (""; . + if . == "" then "" else "," end + $item.param+":"+$item.type+":"+$item.switch)'  2>/dev/null) 
+        tool_command_param_mapping_map["$tool_name"]=$(echo "$tool_json" | jq -cr '.commandParamMapping 
+            | reduce .[] as $item (""; . + if . == "" then "" else "," end 
+                + $item.param+":"+$item.type+":"+$item.switch)'  2>/dev/null) 
     done
 fi
 for k in "${!tool_mcp_spec_map[@]}"; do
@@ -54,7 +59,9 @@ while read -r line; do
     method=$(echo "$line" | jq -r '.method' 2>/dev/null)
     id=$(echo "$line" | jq -r '.id' 2>/dev/null)
     if [[ "$method" == "initialize" ]]; then
-        echo '{"jsonrpc":"2.0","id":'"$id"',"result":{"protocolVersion":"2024-11-05","capabilities":{"experimental":{},"prompts":{"listChanged":false},"resources":{"subscribe":false,"listChanged":false},"tools":{"listChanged":false}},"serverInfo":{"name":"'"${SERVER_NAME:-"hmcpw"}"'","version":"0.0.1"}}}'
+        echo '{"jsonrpc":"2.0","id":'"$id"',"result":{"protocolVersion":"2024-11-05","capabilities":{"experimental":{},'\
+            '"prompts":{"listChanged":false},"resources":{"subscribe":false,"listChanged":false},'\
+            '"tools":{"listChanged":false}},"serverInfo":{"name":"'"${SERVER_NAME:-"hmcpw"}"'","version":"0.0.1"}}}' 
     elif [[ "$method" == "notifications/initialized" ]]; then
         : #do nothing
     elif [[ "$method" == "tools/list" ]]; then
