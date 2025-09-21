@@ -1,0 +1,2 @@
+#!/bin/bash
+echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/list" }' | ./mcpw.sh -d -t '[ { "command": "doit", "commandParamMapping": [{ "param": "hey", "type": "string", "switch": "-f" },{ "param": "hey2", "type": "string"}], "mcpToolSpec": { "name": "bigThing", "params": [] } } ]'
