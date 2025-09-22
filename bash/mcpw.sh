@@ -1,7 +1,7 @@
 #!/bin/bash
 function errorUsage() {
-    echo "USAGE: $0 [-t/--toolsSpecJason jsonToolsConfig] \
-[TODO: -r/--resourcesSpecJson jsonResourcesConfig] [TODO: -p/--promptsSpecJson jsonPromptsConfig]" >&2
+    echo "USAGE: $0 [-t/--toolsSpecJason jsonToolsConfig] [-d/--debug] \
+      [TODO: -r/--resourcesSpecJson jsonResourcesConfig] [TODO: -p/--promptsSpecJson jsonPromptsConfig]" >&2
     exit 1
 }
 function debugLog() {
@@ -29,8 +29,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Load tools from JSON spec into an associative array
-# SCHEMA: [ { command: str, <commandParamMapping>=[{param: str, type: str, switch: str}, ...]>, mcpToolSpec: {...} } ]
+# Load tool properties from JSON spec into associative arrays
+# SCHEMA: [ { command: str, <commandParameters>=[{<mcpParameter: str>, <commandSwitch: str>}, ...]>, mcpToolSpec: {mcpToolSchema: https://modelcontextprotocol.io/specification/2025-06-18/server/tools#tool} } ]
 if [[ -n "$TOOLS_SPEC_JSON" ]]; then
     declare -A tool_commands_map
     declare -A tool_mcp_spec_map
@@ -41,9 +41,9 @@ if [[ -n "$TOOLS_SPEC_JSON" ]]; then
         tool_name=$(echo "$tool_json" | jq -r '.mcpToolSpec.name' 2>/dev/null)
         tool_mcp_spec_map["$tool_name"]=$(echo "$tool_json" | jq -cr '.mcpToolSpec' 2>/dev/null)
         tool_commands_map["$tool_name"]=$(echo "$tool_json" | jq -r '.command' 2>/dev/null)
-        tool_command_param_mapping_map["$tool_name"]=$(echo "$tool_json" | jq -cr '.commandParamMapping 
+        tool_command_param_mapping_map["$tool_name"]=$(echo "$tool_json" | jq -cr '.commandParameters 
             | reduce .[] as $item (""; . + if . == "" then "" else "," end 
-                + $item.param+":"+$item.type+":"+$item.switch)'  2>/dev/null) 
+                + $item.mcpParameter+":"+$item.commandSwitch)'  2>/dev/null) 
     done
 fi
 for k in "${!tool_mcp_spec_map[@]}"; do
@@ -82,9 +82,17 @@ while read -r line; do
         echo '{"jsonrpc":"2.0","id":'"$id"',"result":{"prompts":[]}}'
     elif [[ "$method" == "tools/call" ]]; then
         tool_name=$(echo "$line" | jq -r '.params.name' 2>/dev/null)
-        # imageFilePath=$(echo "$line" | jq -r '.params.arguments.imageFilePath' 2>/dev/null)
-        # prompt=$(echo "$line" | jq -r '.params.arguments.prompt' 2>/dev/null)
-        commandString="date" # TODO: pull from tool
+        debugLog "Tool name of $tool_name and command ${tool_commands_map[$tool_name]}"
+        commandString=${tool_commands_map[$tool_name]}
+        #paramString="-u --debug" # TODO: Piece together with mapping and request params
+        paramString=""
+        IFS=',' read -ra paramSpecArr <<< "${tool_command_param_mapping_map[$tool_name]}"
+        for paramSpec in "${paramSpecArr[@]}"; do
+            debugLog "Got spec $paramSpec"
+        done
+        for arg in $(echo "$line" | jq -cr '.params.arguments | to_entries[]'); do
+            debugLog "Got arg $arg"
+        done
         paramString="-u --debug" # TODO: Piece together with mapping and request params
         result=$($commandString $paramString | jq -R @json)
         echo '{"jsonrpc":"2.0","id":'"$id"',"result":{"content":[{"type":"text","text":'$result'}],"isError":false}}'
