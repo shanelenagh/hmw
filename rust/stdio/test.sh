@@ -1,0 +1,3 @@
+cargo build --release && while IFS= read -r line; do
+    echo "$line" | ./target/release/mcpws.exe -t '[ { "command": "date", "commandParameters": [{ "mcpParameter": "dateParams" }, { "commandSwitch": "-R" }], "mcp_tool_spec": { "name": "bigThing", "description": "Awesome method",     "inputSchema": { "properties": { "dateParams": { "title": "Date parameters", "type": "string" } }, "required": [], "type": "object" } } } ]'
+done
