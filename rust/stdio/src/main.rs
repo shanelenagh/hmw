@@ -2,6 +2,7 @@ use std::process::Command;
 use std::io::{self, BufRead};
 use std::result;
 use argh::FromArgs;
+use serde_json::json;
 
 use serde::{Deserialize, Serialize};
 use typify_macro::import_types;
@@ -41,9 +42,72 @@ fn main() -> io::Result<()> {
     let stdin_handle = io::stdin().lock();
     for line_result in stdin_handle.lines() {
         let line = line_result?;
-        println!("Received line: {}", line);
-        let result = execute_process(&(deserialized_tools[0]).command, &[]); 
-        println!("Process exited with: Output:\n{:?}", result);        
+        let jsonrpc_request: JsonrpcRequest = serde_json::from_str(&line)?;
+        println!("Received line: {} with method {}", line, jsonrpc_request.method);
+        match jsonrpc_request.method.as_str() {
+            "initialize" => {
+                let response = JsonrpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: jsonrpc_request.id,
+                    result: Result {
+                        extra: json!({
+                            "capabilities": {
+                                "protocolVersion": "2024-11-05",
+                                "serverInfo": {
+                                    "name": "mcpws-rust-stdio",
+                                    "version": "0.1.0"
+                                },
+                                "tools": deserialized_tools.iter().map(|tool| &tool.mcp_tool_spec).collect::<Vec<&Tool>>()
+                            }
+                        }).as_object().unwrap().clone(),
+                        meta: json!({
+                            "serverInfo": {
+                                "name": "mcpws-rust-stdio",
+                                "version": "0.1.0"
+                            }
+                        }).as_object().unwrap().clone()
+                    }
+                };
+                let response_text = serde_json::to_string(&response)?;
+                println!("{}", response_text);
+                continue;
+            },
+            "tools/call" => {
+                // Handle tool invocation
+                if deserialized_tools.is_empty() {
+                    let error_response = JsonrpcError {
+                        jsonrpc: "2.0".to_string(),
+                        id: jsonrpc_request.id,
+                        error: JsonrpcErrorError {
+                            code: -32601,
+                            message: "No tools configured".to_string(),
+                            data: None
+                        }
+                    };
+                    let error_text = serde_json::to_string(&error_response)?;
+                    println!("{}", error_text);
+                    continue;
+                }
+                // For simplicity, just use the first tool defined
+                // In a real implementation, you'd match based on the request params                
+                let result = execute_process(&(deserialized_tools[0]).command, &[]); 
+                println!("Process exited with: Output:\n{:?}", result);                   
+            },
+            _ => {
+                let error_response = JsonrpcError {
+                    jsonrpc: "2.0".to_string(),
+                    id: jsonrpc_request.id,
+                    error: JsonrpcErrorError {
+                        code: -32601,
+                        message: "Method not found".to_string(),
+                        data: None
+                    }
+                };
+                let error_text = serde_json::to_string(&error_response)?;
+                println!("{}", error_text);
+                continue;
+            }
+        }     
     }
 
     Ok(())
