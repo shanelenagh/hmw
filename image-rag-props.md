@@ -1,0 +1,3 @@
+ # MCP Inspector params
+  * Command: ./rust/stdio/target/release/mcpws.exe
+  * Arguments: -t '[ { "command": "C:\\Program Files\\Git\\bin\\bash.exe", "command_parameters": [ { "command_switch": "/c/Users/ctr-slenagh/projects/voice-rag/image-rag.sh" }, { "command_switch": "-i", "mcp_parameter": "imageFilePath" }, { "command_switch": "-p", "mcp_parameter": "prompt" } ], "mcp_tool_spec": { "name": "Image RAG", "description": "Image question answering service", "inputSchema": { "properties": { "imageFilePath": { "type": "string", "title": "Image file path" }, "prompt": { "type": "string", "title": "Question to ask about the image" } }, "required": [ "imageFilePath", "prompt" ], "type": "object" } } } ]'
