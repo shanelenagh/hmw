@@ -10,6 +10,13 @@ use typify_macro::import_types;
 
 import_types!(schema="../schemas/mcp_20241105_schema.json");
 
+/// stdio-transport MCP server that wraps a local command
+#[derive(FromArgs, Debug)]
+struct Args {
+    #[argh(option, short='t', description="array of tool specification command wrapper mappings in JSON format: [ {{ \"command\": \"scriptOrExecutable\", <\"command_parameters\": [ <\"mcp_parameter\": \"nameOfMcpMethodArgParameterToMapToCommandParam\">, <\"command_switch\": \"staticCommandSwitchOrSwitchForMcpParameter\" ]>, \"mcp_tool_spec\": {{ mcpToolSpecJsonPerMcpSchema... }} }} , ... ]")]
+    tool_specs: String 
+}
+
 /// Tool schema for passing to CLI
 #[derive(Serialize, Deserialize, Debug)]
 struct ToolDefinition {
@@ -29,19 +36,13 @@ struct CommandParameter {
     command_switch: Option<String>
 }
 
-#[derive(FromArgs, Debug)]
-/// stdio-transport MCP server that wraps a local command
-struct Args {
-    #[argh(option, short='t', description="array of tool specification command wrapper mappings in JSON format: [ {{ \"command\": \"scriptOrExecutable\", <\"command_parameters\": [ <\"mcp_parameter\": \"nameOfMcpMethodArgParameterToMapToCommandParam\">, <\"command_switch\": \"staticCommandSwitchOrSwitchForMcpParameter\" ]>, \"mcp_tool_spec\": {{ mcpToolSpecJsonPerMcpSchema... }} }} , ... ]")]
-    tool_specs: String 
-}
-
 fn main() -> io::Result<()> {
     let args: Args = argh::from_env();
     eprintln!("Tool specs passed in: {}", args.tool_specs);
     let deserialized_tools: Vec<ToolDefinition> = serde_json::from_str(&args.tool_specs)?;
     let tool_spec_map: HashMap<String, &ToolDefinition> = deserialized_tools.iter()
         .map(|tool| (tool.mcp_tool_spec.name.clone(), tool)).collect();
+
     let stdin_handle = io::stdin().lock();
     for line_result in stdin_handle.lines() {
         let line = line_result?;
@@ -80,50 +81,52 @@ fn main() -> io::Result<()> {
     return Ok(())
 }
 
-fn mcp_tools_list_string(id: RequestId, deserialized_tools: &Vec<ToolDefinition>) -> result::Result<String, serde_json::Error> {
-    let tools_list_json = JsonrpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: id,
-        result: Result {
-            extra: json!({
-                "tools": deserialized_tools.iter().map(|tool| &tool.mcp_tool_spec).collect::<Vec<&Tool>>()
-            }).as_object().unwrap().clone(),
-            meta: json!({ }).as_object().unwrap().clone()
+fn mcp_tools_list_string(id: RequestId, deserialized_tools: &Vec<ToolDefinition>) -> result::Result<String, serde_json::Error> { 
+    return serde_json::to_string(
+        &JsonrpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: id,
+            result: Result {
+                extra: json!({
+                    "tools": deserialized_tools.iter().map(|tool| &tool.mcp_tool_spec).collect::<Vec<&Tool>>()
+                }).as_object().unwrap().clone(),
+                meta: json!({ }).as_object().unwrap().clone()
+            }
         }
-    };   
-    return serde_json::to_string(&tools_list_json); 
+    ); 
 }
 
 fn mcp_init_string(id: RequestId, server_name: &str, server_version: &str, deserialized_tools: &Vec<ToolDefinition>) -> result::Result<String,  serde_json::Error> {
-    let init_json = JsonrpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: id,
-        result: Result {
-            extra: json!({
-                "capabilities": {
-                    "protocolVersion": "2024-11-05",
+    return serde_json::to_string(
+        &JsonrpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: id,
+            result: Result {
+                extra: json!({
+                    "capabilities": {
+                        "protocolVersion": "2024-11-05",
+                        "serverInfo": {
+                            "name": server_name,
+                            "version": server_version
+                        },
+                        "tools": deserialized_tools.iter().map(|tool| &tool.mcp_tool_spec).collect::<Vec<&Tool>>()
+                    }
+                }).as_object().unwrap().clone(),
+                meta: json!({
                     "serverInfo": {
                         "name": server_name,
                         "version": server_version
-                    },
-                    "tools": deserialized_tools.iter().map(|tool| &tool.mcp_tool_spec).collect::<Vec<&Tool>>()
-                }
-            }).as_object().unwrap().clone(),
-            meta: json!({
-                "serverInfo": {
-                    "name": server_name,
-                    "version": server_version
-                }
-            }).as_object().unwrap().clone()
-        }
-    };
-    return serde_json::to_string(&init_json);
+                    }
+                }).as_object().unwrap().clone()
+            }
+        }        
+    );
 }
 
 fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definition_map: &HashMap<String, &ToolDefinition>) -> result::Result<String, serde_json::Error> {
     let tool: &ToolDefinition = tool_definition_map.get(&request.params.name).expect("Tool not found in map");
     let mut args: Vec<String> = Vec::new();
-    //TODO: all these daisy chained '.to_owned().as_str().unwrap().to_owned()''s are a hot mess--gotta be a simpler way
+    // Coolect args, both mapped method arguments and static command switches
     if tool.command_parameters.is_some() {
         for cp in tool.command_parameters.as_ref().unwrap().iter() {
             if cp.mcp_parameter.is_some() { 
@@ -134,26 +137,27 @@ fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definitio
                 if cp.command_switch.is_some() {
                     args.push(cp.command_switch.as_ref().unwrap().to_owned());
                 }
-                args.push(arg_value.unwrap().to_owned().as_str().unwrap().to_owned());  // TODO: Holy crap this daisy chain is obtuse!!!
+                args.push(arg_value.unwrap().to_owned().as_str().unwrap().to_owned());
             } else if cp.command_switch.is_some() { 
                 args.push(cp.command_switch.as_ref().unwrap().to_owned());
             }            
         }
     }
     eprintln!("Executing command: {} with args: {:?}", tool.command, args);
-    let exec_result = execute_process(&tool.command, args).expect("Failed to execute process"); // TODO: Handle error with JSON response
-    let tool_call_json = JsonrpcResponse {
-        jsonrpc: "2.0".to_string(),
-        id: id,
-        result: Result {
-            extra: json!({
-                "content": [ { "type": "text", "text": exec_result } ],
-                "is_error": false
-            }).as_object().unwrap().clone(),
-            meta: json!({ }).as_object().unwrap().clone()
-        }
-    };                
-    return serde_json::to_string(&tool_call_json);
+    let exec_result = execute_process(&tool.command, args).expect("Failed to execute process"); // TODO: Handle error with JSON response              
+    return serde_json::to_string(
+        &JsonrpcResponse {
+            jsonrpc: "2.0".to_string(),
+            id: id,
+            result: Result {
+                extra: json!({
+                    "content": [ { "type": "text", "text": exec_result } ],
+                    "is_error": false
+                }).as_object().unwrap().clone(),
+                meta: json!({ }).as_object().unwrap().clone()
+            }
+        }        
+    );
 }
 
 fn execute_process(command: &str, args: Vec<String>) -> result::Result<String,  String> {
