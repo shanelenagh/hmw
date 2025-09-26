@@ -125,7 +125,7 @@ fn mcp_init_string(id: RequestId, server_name: &str, server_version: &str, deser
 fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definition_map: &HashMap<String, &ToolDefinition>) -> result::Result<String, serde_json::Error> {
     let tool: &ToolDefinition = tool_definition_map.get(&request.params.name).expect("Tool not found in map");
     let mut args: Vec<String> = Vec::new();
-    //TODO: all these daisy changed '.to_owned().as_str().unwrap().to_owned()''s are a hot mess--gotta be a simpler way
+    //TODO: all these daisy chained '.to_owned().as_str().unwrap().to_owned()''s are a hot mess--gotta be a simpler way
     if tool.command_parameters.is_some() {
         for cp in tool.command_parameters.as_ref().unwrap().iter() {
             if cp.mcp_parameter.is_some() { 
