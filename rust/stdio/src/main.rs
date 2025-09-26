@@ -159,8 +159,12 @@ fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definitio
         }
     }
     eprintln!("Executing command: {} with args: {:?}", tool.command, args);
-    let exec_result = execute_process(&tool.command, args).expect("Failed to execute process"); // TODO: Handle error with JSON response              
-    eprintln!("Got result from execution: {:?}", exec_result);
+    let exec_result = execute_process(&tool.command, args);
+    let result_str = match exec_result {
+        Ok(ref output) => output,
+        Err(ref error) => error
+    };
+    eprintln!("Got result from execution: {}", result_str);
     return serde_json::to_string(
         &JsonRpcServerResult {
             jsonrpc: "2.0".to_string(),
@@ -169,11 +173,11 @@ fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definitio
                 content: [ 
                     CallToolResultContentItem::TextContent(TextContent {
                         type_: "text".to_string(),
-                        text: exec_result,
+                        text: result_str.to_string(),
                         annotations: None
                     })
                 ].to_vec(),
-                is_error: Some(false),
+                is_error: Some(exec_result.is_err()),
                 meta: json!({ }).as_object().unwrap().clone()
             })
         }        
@@ -183,11 +187,17 @@ fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definitio
 fn execute_process(command: &str, args: Vec<String>) -> result::Result<String,  String> {
     let output = Command::new(command)
         .args(args.as_slice())
-        .output()
-        .expect("Failed to execute command");   // TODO: Handle without panic
-    if output.status.success() {
-        return Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string())
+        .output();
+    match output {
+        Ok(ok_output) => {
+            if ok_output.status.success() {
+                return Ok(String::from_utf8_lossy(&ok_output.stdout).to_string())
+            } else {
+                return Err(String::from_utf8_lossy(&ok_output.stderr).to_string())
+            }            
+        }
+        Err(e) => {
+            return Err(e.to_string());
+        }
     }
 }
