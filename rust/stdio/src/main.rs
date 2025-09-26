@@ -52,7 +52,6 @@ fn main() -> io::Result<()> {
             "initialize" => {
                 let init_string = mcp_init_string(jsonrpc_request.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), &deserialized_tools)?;
                 println!("{}", init_string);
-                continue;
             },
             "tools/call" => {
                 let tool_call_request: CallToolRequest = serde_json::from_str(&line)?;
@@ -75,7 +74,6 @@ fn main() -> io::Result<()> {
                 };
                 let error_text = serde_json::to_string(&error_response)?;
                 println!("{}", error_text);
-                continue;
             }
         }     
     }
@@ -143,16 +141,26 @@ fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definitio
         }
     }
     eprintln!("Executing command: {} with args: {:?}", tool.command, args);
-    let result = execute_process(&tool.command, args /* TODO: Put in params */).expect("Failed to execute process"); 
-    eprintln!("Process exited with output: {:?}", result);                   
-    return Ok(("{ \"result\": \"".to_owned() + &result + "\", \"id\": " + &id.to_string() + " }").to_string())
+    let exec_result = execute_process(&tool.command, args).expect("Failed to execute process"); // TODO: Handle error with JSON response
+    let tool_call_json = JsonrpcResponse {
+        jsonrpc: "2.0".to_string(),
+        id: id,
+        result: Result {
+            extra: json!({
+                "content": [ { "type": "text", "text": exec_result } ],
+                "is_error": false
+            }).as_object().unwrap().clone(),
+            meta: json!({ }).as_object().unwrap().clone()
+        }
+    };                
+    return serde_json::to_string(&tool_call_json);
 }
 
 fn execute_process(command: &str, args: Vec<String>) -> result::Result<String,  String> {
     let output = Command::new(command)
         .args(args.as_slice())
         .output()
-        .expect("Failed to execute command");
+        .expect("Failed to execute command");   // TODO: Handle without panic
     if output.status.success() {
         return Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
