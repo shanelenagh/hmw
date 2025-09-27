@@ -197,7 +197,7 @@ fn execute_process(command: &str, args: Vec<String>) -> result::Result<String,  
             }            
         }
         Err(e) => {
-            return Err(e.to_string());
+            return Err("System level error: ".to_owned() + &e.to_string());
         }
     }
 }
