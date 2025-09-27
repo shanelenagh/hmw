@@ -9,7 +9,7 @@ use serde_json::json;
 use serde::{Deserialize, Serialize};
 use typify_macro::import_types;
 
-import_types!(schema="../schemas/mcp_20241105_schema.json");
+import_types!(schema="../../schemas/mcp_20241105_schema.json");
 
 /// stdio-transport MCP server that wraps a local command
 #[derive(FromArgs)]
