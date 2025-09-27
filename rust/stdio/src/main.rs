@@ -14,7 +14,7 @@ import_types!(schema="../../schemas/mcp_20241105_schema.json");
 /// stdio-transport MCP server that wraps a local command
 #[derive(FromArgs)]
 struct Args {
-    #[argh(option, short='t', description="array of tool specification command wrapper mappings in JSON format: [ {{ \"command\": \"scriptOrExecutable\", <\"command_parameters\": [ <\"mcp_parameter\": \"nameOfMcpMethodArgParameterToMapToCommandParam\">, <\"command_switch\": \"staticCommandSwitchOrSwitchForMcpParameter\" ]>, \"mcp_tool_spec\": {{ mcpToolSpecJsonPerMcpSchema... }} }} , ... ]")]
+    #[argh(option, short='t', description="array of tool specification command wrapper mappings in JSON format: [ {{ \"command\": \"scriptOrExecutable\", <\"command_parameters\": [ <\"mcp_parameter\": \"nameOfMcpMethodArgParameterToMapToCommandParam\">, <\"command_param\": \"staticCommandSwitchOrSwitchForMcpParameter\" ]>, \"mcp_tool_spec\": {{ mcpToolSpecJsonPerMcpSchema... }} }} , ... ]")]
     tool_specs: String 
 }
 
@@ -24,17 +24,17 @@ struct ToolDefinition {
     /// Shell script or executable program to execute
     command: String,
     /// List of command parameter mappings (either static switches or mapping of MCP method paremeters to command parameters)
-    command_parameters: Option<Vec<CommandParameter>>,
+    command_parameters: Option<Vec<CommandParameterMapping>>,
     /// MCP tool specification, compliant with MCP JSON-schema
     mcp_tool_spec: Tool
 }
 /// Command parameter (either static switch, and/or mapping from MCP method parameter to command switch or positional argument)
 #[derive(Serialize, Deserialize)]
-struct CommandParameter {
+struct CommandParameterMapping {
     /// MCP method parameter name to map to
-    mcp_parameter: Option<String>,
+    mcp_param: Option<String>,
     /// Command line switch (either static or receiving MCP method argument value)
-    command_switch: Option<String>
+    command_param: Option<String>
 }
 
 fn main() -> io::Result<()> {
@@ -145,17 +145,17 @@ fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definitio
     // Collect args, both mapped method arguments and static command switches
     if tool.command_parameters.is_some() {
         for cp in tool.command_parameters.as_ref().unwrap().iter() {
-            if cp.mcp_parameter.is_some() { 
-                let arg_value: Option<&serde_json::Value> = request.params.arguments.get(cp.mcp_parameter.as_ref().unwrap());
+            if cp.mcp_param.is_some() { 
+                let arg_value: Option<&serde_json::Value> = request.params.arguments.get(cp.mcp_param.as_ref().unwrap());
                 if arg_value.is_none() {  // They didn't pass this value
                     continue;   
                 }
-                if cp.command_switch.is_some() {
-                    args.push(cp.command_switch.as_ref().unwrap().to_owned());
+                if cp.command_param.is_some() {
+                    args.push(cp.command_param.as_ref().unwrap().to_owned());
                 }
                 args.push(arg_value.unwrap().to_owned().as_str().unwrap().to_owned());
-            } else if cp.command_switch.is_some() { 
-                args.push(cp.command_switch.as_ref().unwrap().to_owned());
+            } else if cp.command_param.is_some() { 
+                args.push(cp.command_param.as_ref().unwrap().to_owned());
             }            
         }
     }
