@@ -3,6 +3,7 @@ use std::io::{self, BufRead};
 use std::result;
 use argh::FromArgs;
 use std::collections::HashMap;
+use log::{debug};
 
 use serde_json::json;
 use serde::{Deserialize, Serialize};
@@ -39,21 +40,21 @@ struct CommandParameter {
 fn main() -> io::Result<()> {
     let args: Args = argh::from_env();
     eprintln!("Tool specs passed in: {}", args.tool_specs);
-    let deserialized_tools: Vec<ToolDefinition> = serde_json::from_str(&args.tool_specs)?;
-    let tool_spec_map: HashMap<String, &ToolDefinition> = deserialized_tools.iter()
+    let tool_definitions: Vec<ToolDefinition> = serde_json::from_str(&args.tool_specs)?;
+    let tool_spec_map: HashMap<String, &ToolDefinition> = tool_definitions.iter()
         .map(|tool| (tool.mcp_tool_spec.name.clone(), tool)).collect();
+    let mcp_tools = tool_definitions.iter().map(|tool| tool.mcp_tool_spec.clone()).collect::<Vec<Tool>>();
 
     let stdin_handle = io::stdin().lock();
     for line_result in stdin_handle.lines() {
         let line = line_result?;
         let jsonrpc_request: JsonrpcRequest = serde_json::from_str(&line)?;
-        // TODO: Use logging framework debug statements for these
-        eprintln!("Received line: {} with method {}", line, jsonrpc_request.method);
+        debug!("Received line: {} with method {}", line, jsonrpc_request.method);
         match jsonrpc_request.method.as_str() {
             "initialize" => {
                 let init_string = mcp_init_string(jsonrpc_request.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))?;
                 println!("{}", init_string);
-                eprintln!("{}", init_string);
+                debug!("Init response: {}", init_string);
             },
             "tools/call" => {
                 let tool_call_request: CallToolRequest = serde_json::from_str(&line)?;
@@ -61,7 +62,7 @@ fn main() -> io::Result<()> {
                 println!("{}", tool_call_response);
             },
             "tools/list" => {
-                let tools_list_response = mcp_tools_list_string(jsonrpc_request.id, &deserialized_tools)?;
+                let tools_list_response = mcp_tools_list_string(jsonrpc_request.id, &mcp_tools)?;
                 println!("{}", tools_list_response);
             },
             _ => {
@@ -89,13 +90,13 @@ struct JsonRpcServerResult {
     result: ServerResult
 }
 
-fn mcp_tools_list_string(id: RequestId, deserialized_tools: &Vec<ToolDefinition>) -> result::Result<String, serde_json::Error> { 
+fn mcp_tools_list_string(id: RequestId, tools: &Vec<Tool>) -> result::Result<String, serde_json::Error> { 
     return serde_json::to_string(
         &JsonRpcServerResult {
             jsonrpc: "2.0".to_string(),
             id: id,
             result: ServerResult::ListToolsResult(ListToolsResult {
-                tools: deserialized_tools.iter().map(|tool| tool.mcp_tool_spec.clone()).collect::<Vec<Tool>>(),
+                tools: tools.to_vec(),
                 next_cursor: None,
                 meta: json!({ }).as_object().unwrap().clone()
             })
@@ -146,8 +147,8 @@ fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definitio
         for cp in tool.command_parameters.as_ref().unwrap().iter() {
             if cp.mcp_parameter.is_some() { 
                 let arg_value: Option<&serde_json::Value> = request.params.arguments.get(cp.mcp_parameter.as_ref().unwrap());
-                if arg_value.is_none() {
-                    continue;   // They didn't pass this value
+                if arg_value.is_none() {  // They didn't pass this value
+                    continue;   
                 }
                 if cp.command_switch.is_some() {
                     args.push(cp.command_switch.as_ref().unwrap().to_owned());
@@ -158,13 +159,13 @@ fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definitio
             }            
         }
     }
-    eprintln!("Executing command: {} with args: {:?}", tool.command, args);
+    debug!("Executing command: {} with args: {:?}", tool.command, args);
     let exec_result = execute_process(&tool.command, args);
     let result_str = match exec_result {
         Ok(ref output) => output,
         Err(ref error) => error
     };
-    eprintln!("Got result from execution: {}", result_str);
+    debug!("Got result from execution: {}", result_str);
     return serde_json::to_string(
         &JsonRpcServerResult {
             jsonrpc: "2.0".to_string(),
