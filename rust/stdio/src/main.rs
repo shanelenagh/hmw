@@ -55,7 +55,7 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
                 id: RequestId::from(-1),
                 error: JsonrpcErrorError {
                     code: -32700,
-                    message: "Parsing of request failed (check conformance with MCP Schema)".to_string(),
+                    message: "Parsing of request failed (check conformance with MCP Schema): ".to_string() + &line,
                     data: None
                 }
             };
