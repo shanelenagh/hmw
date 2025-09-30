@@ -50,7 +50,7 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
     for line_result in stdin_handle.lines() {
         let line = line_result?;
         let Ok(jsonrpc_request) = serde_json::from_str::<JsonrpcRequest>(&line) else {
-            let error_response = JsonrpcError {
+            let error_text = serde_json::to_string(&JsonrpcError {
                 jsonrpc: "2.0".to_string(),
                 id: RequestId::from(-1),
                 error: JsonrpcErrorError {
@@ -58,8 +58,7 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
                     message: "Parsing of request failed (check conformance with MCP Schema): ".to_string() + &line,
                     data: None
                 }
-            };
-            let error_text = serde_json::to_string(&error_response)?;
+            })?;
             println!("{}", error_text);     
             continue;       
         };
