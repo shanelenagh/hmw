@@ -65,21 +65,21 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
         debug!("Received line: {} with method {}", line, jsonrpc_request.method);
         match jsonrpc_request.method.as_str() {
             "initialize" => {
-                let init_string = mcp_init_string(jsonrpc_request.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))?;
+                let init_string = mcp_init_string(jsonrpc_request.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))?;    // TODO: Another parsing error handler here
                 println!("{}", init_string);
                 debug!("Init response: {}", init_string);
             },
             "tools/call" => {
-                let tool_call_request: CallToolRequest = serde_json::from_str(&line)?;
+                let tool_call_request: CallToolRequest = serde_json::from_str::<CallToolRequest>(&line)?;    // TODO: Another parsing error handler here
                 let tool_call_response = mcp_handle_tool_call(jsonrpc_request.id, &tool_call_request, &tool_spec_map)?;
                 println!("{}", tool_call_response);
             },
             "tools/list" => {
-                let tools_list_response = mcp_tools_list_string(jsonrpc_request.id, &mcp_tools)?;
+                let tools_list_response = mcp_tools_list_string(jsonrpc_request.id, &mcp_tools)?;   // TODO: Another parsing error handler here
                 println!("{}", tools_list_response);
             },
             _ => {
-                let error_response = JsonrpcError {
+                let error_response = JsonrpcError { //TODO: Just make this a generic function and all these parsing things can call it
                     jsonrpc: "2.0".to_string(),
                     id: jsonrpc_request.id,
                     error: JsonrpcErrorError {
@@ -153,7 +153,7 @@ fn mcp_init_string(id: RequestId, server_name: &str, server_version: &str) -> re
 }
 
 fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definition_map: &HashMap<String, &ToolDefinition>) -> result::Result<String, serde_json::Error> {
-    let Some(tool) = tool_definition_map.get(&request.params.name) else {
+    let Some(tool) = tool_definition_map.get(&request.params.name) else { //TODO: Just make this a generic function and all these parsing things can call it
         return serde_json::to_string(&JsonrpcError {
             jsonrpc: "2.0".to_string(),
             id: id,
