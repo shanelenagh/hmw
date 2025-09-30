@@ -1,8 +1,5 @@
-use std::process::Command;
-use std::io::{self, BufRead};
-use std::result;
+use std::{process::Command, io::self, io::BufRead, result, error as std_error, collections::HashMap};
 use argh::FromArgs;
-use std::collections::HashMap;
 use log::{debug};
 
 use serde_json::json;
@@ -37,11 +34,13 @@ struct CommandParameterMapping {
     command_param: Option<String>
 }
 
-fn main() -> io::Result<()> {
+fn main() -> result::Result<(), Box<dyn std_error::Error>> {
     env_logger::init();
     let args: Args = argh::from_env();
     debug!("Tool specs passed in: {}", args.tool_specs);
-    let tool_definitions: Vec<ToolDefinition> = serde_json::from_str(&args.tool_specs)?;
+    let Ok(tool_definitions) = serde_json::from_str::<Vec<ToolDefinition>>(&args.tool_specs) else {
+        return Err(("Can't parse tool list (confirm schema with help CLI option): ".to_owned() + &args.tool_specs).into());
+    };
     let tool_spec_map: HashMap<String, &ToolDefinition> = tool_definitions.iter()
         .map(|tool| (tool.mcp_tool_spec.name.clone(), tool)).collect();
     let mcp_tools = tool_definitions.iter().map(|tool| tool.mcp_tool_spec.clone()).collect::<Vec<Tool>>();
