@@ -49,7 +49,20 @@ fn main() -> io::Result<()> {
     let stdin_handle = io::stdin().lock();
     for line_result in stdin_handle.lines() {
         let line = line_result?;
-        let jsonrpc_request: JsonrpcRequest = serde_json::from_str(&line)?;
+        let Ok(jsonrpc_request) = serde_json::from_str::<JsonrpcRequest>(&line) else {
+            let error_response = JsonrpcError {
+                jsonrpc: "2.0".to_string(),
+                id: RequestId::from(-1),
+                error: JsonrpcErrorError {
+                    code: -32700,
+                    message: "Parsing of request failed (check conformance with MCP Schema)".to_string(),
+                    data: None
+                }
+            };
+            let error_text = serde_json::to_string(&error_response)?;
+            println!("{}", error_text);     
+            continue;       
+        };
         debug!("Received line: {} with method {}", line, jsonrpc_request.method);
         match jsonrpc_request.method.as_str() {
             "initialize" => {
