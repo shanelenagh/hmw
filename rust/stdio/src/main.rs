@@ -38,6 +38,7 @@ struct CommandParameterMapping {
 }
 
 fn main() -> io::Result<()> {
+    env_logger::init();
     let args: Args = argh::from_env();
     debug!("Tool specs passed in: {}", args.tool_specs);
     let tool_definitions: Vec<ToolDefinition> = serde_json::from_str(&args.tool_specs)?;
