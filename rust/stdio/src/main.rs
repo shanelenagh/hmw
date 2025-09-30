@@ -35,6 +35,7 @@ struct CommandParameterMapping {
 }
 
 fn main() -> result::Result<(), Box<dyn std_error::Error>> {
+    #[cfg(debug_assertions)]
     env_logger::init();
     let args: Args = argh::from_env();
     debug!("Tool specs passed in: {}", args.tool_specs);
