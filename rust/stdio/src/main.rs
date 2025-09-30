@@ -39,7 +39,7 @@ struct CommandParameterMapping {
 
 fn main() -> io::Result<()> {
     let args: Args = argh::from_env();
-    eprintln!("Tool specs passed in: {}", args.tool_specs);
+    debug!("Tool specs passed in: {}", args.tool_specs);
     let tool_definitions: Vec<ToolDefinition> = serde_json::from_str(&args.tool_specs)?;
     let tool_spec_map: HashMap<String, &ToolDefinition> = tool_definitions.iter()
         .map(|tool| (tool.mcp_tool_spec.name.clone(), tool)).collect();
@@ -71,7 +71,7 @@ fn main() -> io::Result<()> {
                     id: jsonrpc_request.id,
                     error: JsonrpcErrorError {
                         code: -32601,
-                        message: "Method not found".to_string(),
+                        message: "MCP method not found: ".to_string() + jsonrpc_request.method.as_str(),
                         data: None
                     }
                 };
@@ -140,7 +140,17 @@ fn mcp_init_string(id: RequestId, server_name: &str, server_version: &str) -> re
 }
 
 fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definition_map: &HashMap<String, &ToolDefinition>) -> result::Result<String, serde_json::Error> {
-    let tool: &ToolDefinition = tool_definition_map.get(&request.params.name).expect("Tool not found in map");
+    let Some(tool) = tool_definition_map.get(&request.params.name) else {
+        return serde_json::to_string(&JsonrpcError {
+            jsonrpc: "2.0".to_string(),
+            id: id,
+            error: JsonrpcErrorError {
+                code: -32601,
+                message: "Method name not found: ".to_owned() + &request.params.name,
+                data: None
+            }
+        });
+    };
     let mut args: Vec<String> = Vec::new();
     // Collect args, both mapped method arguments and static command switches
     if tool.command_parameters.is_some() {
