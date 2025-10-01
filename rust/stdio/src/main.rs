@@ -56,18 +56,17 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
         debug!("Received line: {} with method {}", line, jsonrpc_request.method);
         match jsonrpc_request.method.as_str() {
             "initialize" => {
-                let init_string = mcp_init_string(jsonrpc_request.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))?;    // TODO: Another parsing error handler here
-                println!("{}", init_string);
-                debug!("Init response: {}", init_string);
+                println!("{}", mcp_init_string(jsonrpc_request.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))?);
             },
             "tools/call" => {
-                let tool_call_request: CallToolRequest = serde_json::from_str::<CallToolRequest>(&line)?;    // TODO: Another parsing error handler here
-                let tool_call_response = mcp_handle_tool_call(jsonrpc_request.id, &tool_call_request, &tool_spec_map)?;
-                println!("{}", tool_call_response);
+                let Ok(tool_call_request) = serde_json::from_str::<CallToolRequest>(&line) else {
+                    println!("{}", jsonrpc_error_str(RequestId::from(-1), -32700, "Parsing of tool call request failed: ".to_string()+&line)?);
+                    continue;
+                };
+                println!("{}", mcp_handle_tool_call(jsonrpc_request.id, &tool_call_request, &tool_spec_map)?);
             },
             "tools/list" => {
-                let tools_list_response = mcp_tools_list_string(jsonrpc_request.id, &mcp_tools)?;   // TODO: Another parsing error handler here
-                println!("{}", tools_list_response);
+                println!("{}", mcp_tools_list_string(jsonrpc_request.id, &mcp_tools)?);
             },
             _ => {
                 println!("{}", jsonrpc_error_str(jsonrpc_request.id, -32601, "MCP method not found: ".to_string() + jsonrpc_request.method.as_str())?);
