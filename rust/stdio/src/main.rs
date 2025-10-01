@@ -50,16 +50,7 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
     for line_result in stdin_handle.lines() {
         let line = line_result?;
         let Ok(jsonrpc_request) = serde_json::from_str::<JsonrpcRequest>(&line) else {
-            let error_text = serde_json::to_string(&JsonrpcError {
-                jsonrpc: "2.0".to_string(),
-                id: RequestId::from(-1),
-                error: JsonrpcErrorError {
-                    code: -32700,
-                    message: "Parsing of request failed (check conformance with MCP Schema): ".to_string() + &line,
-                    data: None
-                }
-            })?;
-            println!("{}", error_text);     
+            println!("{}", jsonrpc_error_str(RequestId::from(-1), -32700, "Parsing of request failed (check conformance with MCP Schema): ".to_string() + &line)?);     
             continue;       
         };
         debug!("Received line: {} with method {}", line, jsonrpc_request.method);
@@ -79,17 +70,7 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
                 println!("{}", tools_list_response);
             },
             _ => {
-                let error_response = JsonrpcError { //TODO: Just make this a generic function and all these parsing things can call it
-                    jsonrpc: "2.0".to_string(),
-                    id: jsonrpc_request.id,
-                    error: JsonrpcErrorError {
-                        code: -32601,
-                        message: "MCP method not found: ".to_string() + jsonrpc_request.method.as_str(),
-                        data: None
-                    }
-                };
-                let error_text = serde_json::to_string(&error_response)?;
-                println!("{}", error_text);
+                println!("{}", jsonrpc_error_str(jsonrpc_request.id, -32601, "MCP method not found: ".to_string() + jsonrpc_request.method.as_str())?);
             }
         }     
     }
@@ -101,6 +82,18 @@ struct JsonRpcServerResult {
     id: RequestId,
     jsonrpc: ::std::string::String,
     result: ServerResult
+}
+
+fn jsonrpc_error_str(request_id: RequestId, error_code: i64, message: String) -> result::Result<String, serde_json::Error> {
+    return serde_json::to_string(&JsonrpcError {
+        jsonrpc: "2.0".to_string(),
+        id: request_id,
+        error: JsonrpcErrorError {
+            code: error_code,
+            message: message,
+            data: None
+        }
+    });
 }
 
 fn mcp_tools_list_string(id: RequestId, tools: &Vec<Tool>) -> result::Result<String, serde_json::Error> { 
@@ -154,15 +147,7 @@ fn mcp_init_string(id: RequestId, server_name: &str, server_version: &str) -> re
 
 fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definition_map: &HashMap<String, &ToolDefinition>) -> result::Result<String, serde_json::Error> {
     let Some(tool) = tool_definition_map.get(&request.params.name) else { //TODO: Just make this a generic function and all these parsing things can call it
-        return serde_json::to_string(&JsonrpcError {
-            jsonrpc: "2.0".to_string(),
-            id: id,
-            error: JsonrpcErrorError {
-                code: -32601,
-                message: "Method name not found: ".to_owned() + &request.params.name,
-                data: None
-            }
-        });
+        return jsonrpc_error_str(id, -32601, "Method name not found: ".to_owned() + &request.params.name);
     };
     let mut args: Vec<String> = Vec::new();
     // Collect args, both mapped method arguments and static command switches
