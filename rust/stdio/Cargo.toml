@@ -21,5 +21,6 @@ incremental = false
 #opt-level = "z"
 
 [features]
-# Whether to enable debug trace statements in code (increases binary size by >100K, if small mem really matters to you)
+default = ["debug_log"]
+# Whether to enable debug trace statements in code (increases binary size by >100K, if small binary really matters to you)
 debug_log = []
