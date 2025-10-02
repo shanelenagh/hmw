@@ -9,5 +9,12 @@ done
 # ./target/release/mcpws.exe -t '[ { "command": "C:\\Program Files\\Git\\bin\\bash.exe", "command_parameters": [ { "command_param": "./hi.sh" }, { "command_param": "big boy", "mcp_param": "name" } ], "mcp_tool_spec": { "name": "hi", "description": "Echo hello", "inputSchema": { "properties": { }, "required": [], "type": "object" } } } ]'
 # { "jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": { "name": "hi", "arguments": { "name": "Shane Lenagh" } } }
 
-# ./target/release/mcpws.exe -t '[ { "command": "C:\\Program Files\\Git\\bin\\bash.exe", "command_parameters": [ { "command_param": "/c/Users/ctr-slenagh/projects/voice-rag/image-rag.sh" }, { "command_param": "-i", "mcp_param": "imageFilePath" }, { "command_param": "-p", "mcp_param": "prompt" } ], "mcp_tool_spec": { "name": "Image RAG", "description": "Image question answering service", "inputSchema": { "properties": { "imageFilePath": { "type": "string", "title": "Image file path" }, "prompt": { "type": "string", "title": "Question to ask about the image" } }, "required": [ "imageFilePath", "prompt" ], "type": "object" } } } ]'
-# { "jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": { "name": "Image RAG", "arguments": { "imageFilePath": "/c/Users/ctr-slenagh/projects/voice-rag/UBClaim.png", "prompt": "Who is the patient?" } } }
+# ./target/release/mcpws.exe -t '[ { "command": "C:\\Program Files\\Git\\bin\\bash.exe", "command_parameters": [ { "command_param": "~/projects/voice-rag/image-rag.sh" }, { "command_param": "-i", "mcp_param": "imageFilePath" }, { "command_param": "-p", "mcp_param": "prompt" } ], "mcp_tool_spec": { "name": "Image RAG", "description": "Image question answering service", "inputSchema": { "properties": { "imageFilePath": { "type": "string", "title": "Image file path" }, "prompt": { "type": "string", "title": "Question to ask about the image" } }, "required": [ "imageFilePath", "prompt" ], "type": "object" } } } ]'
+# { "jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": { "name": "image_rag", "arguments": { "imageFilePath": "/c/Users/ctr-slenagh/projects/voice-rag/UBClaim.png", "prompt": "Who is the patient?" } } }
+
+# VSCode MCP Definition (mcp.json)
+# "Rust Wrapped Image Rag": {
+# 	"type": "stdio",
+# 	"command": "C:\\Users\\ctr-slenagh\\projects\\hmw\\rust\\stdio\\target\\release\\mcpws.exe",
+# 	"args": ["-t", "[ { \"command\": \"sh\", \"command_parameters\": [ { \"command_param\": \"~/projects/voice-rag/image-rag.sh\" }, { \"command_param\": \"-i\", \"mcp_param\": \"imageFilePath\" }, { \"command_param\": \"-p\", \"mcp_param\": \"prompt\" } ], \"mcp_tool_spec\": { \"name\": \"image_rag\", \"description\": \"Image question answering service\", \"inputSchema\": { \"properties\": { \"imageFilePath\": { \"type\": \"string\", \"title\": \"Image file path\" }, \"prompt\": { \"type\": \"string\", \"title\": \"Question to ask about the image\" } }, \"required\": [], \"type\": \"object\" } } } ]"]
+# }

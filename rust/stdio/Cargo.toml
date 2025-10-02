@@ -1,7 +1,7 @@
 [package]
 name = "mcpws"
 version = "0.1.0"
-edition = "2025"
+edition = "2024"
 
 [dependencies]
 typify-macro = "0.4.3"
