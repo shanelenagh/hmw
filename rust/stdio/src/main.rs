@@ -1,6 +1,6 @@
 use std::{process::Command, io::self, io::BufRead, result, error as std_error, collections::HashMap};
 use argh::FromArgs;
-use log::{debug};
+use tracing::{debug};
 
 use serde_json::json;
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,10 @@ import_types!(schema="../../schemas/mcp_20241105_schema.json");
 #[derive(FromArgs)]
 struct Args {
     #[argh(option, short='t', description="array of tool specification command wrapper mappings in JSON format: [ {{ \"command\": \"scriptOrExecutable\", <\"command_parameters\": [ <\"mcp_param\": \"nameOfMcpMethodArgParameterToMapToCommandParam\">, <\"command_param\": \"staticCommandSwitchOrSwitchForMcpParameter\" ]>, \"mcp_tool_spec\": {{ mcpToolSpecJsonPerOfficialMcpSchema... }} }} , ... ]")]
-    tool_specs: String 
+    tool_specs: String, 
+    #[cfg(feature = "debug_log")]
+    #[argh(switch, short='d', description="debug output on stderr (will show up in console of MCP server/inspector)")]
+    debug: bool
 }
 
 /// Tool schema for passing to CLI
@@ -35,9 +38,17 @@ struct CommandParameterMapping {
 }
 
 fn main() -> result::Result<(), Box<dyn std_error::Error>> {
-    #[cfg(debug_assertions)]
-    env_logger::init();
     let args: Args = argh::from_env();
+    #[cfg(feature = "debug_log")]
+    if args.debug {
+        use tracing_subscriber::{fmt, prelude::*};
+        let stderr_layer = fmt::layer()
+            .pretty()                       // Use a human-readable, pretty format
+            .with_writer(std::io::stderr);  // Specify stderr as the output target        
+        tracing_subscriber::registry()
+            .with(stderr_layer)
+            .init();
+    }    
     debug!("Tool specs passed in: {}", args.tool_specs);
     let Ok(tool_definitions) = serde_json::from_str::<Vec<ToolDefinition>>(&args.tool_specs) else {
         return Err(("Can't parse tool list (confirm schema with help CLI option): ".to_owned() + &args.tool_specs).into());
