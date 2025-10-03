@@ -15,7 +15,10 @@ struct Args {
     tool_specs: String, 
     #[cfg(feature = "debug_log")]
     #[argh(switch, short='d', description="debug output on stderr (will show up in console of MCP server/inspector)")]
-    debug: bool
+    debug: bool,
+    #[cfg(feature = "debug_log")]
+    #[argh(switch, short='p', description="pretty print log (including console ASCII coloring)")]
+    pretty: bool
 }
 
 /// Tool schema for passing to CLI
@@ -42,12 +45,19 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
     #[cfg(feature = "debug_log")]
     if args.debug {
         use tracing_subscriber::{fmt, prelude::*};
-        let stderr_layer = fmt::layer()
-            .pretty()                       // Use a human-readable, pretty format
-            .with_writer(std::io::stderr);  // Specify stderr as the output target        
-        tracing_subscriber::registry()
-            .with(stderr_layer)
-            .init();
+        if args.pretty {
+            tracing_subscriber::registry().with(
+                fmt::layer()
+                    .pretty()                   
+                    .with_writer(std::io::stderr)   // Specify stderr as the output target
+            ).init();
+        } else {
+            tracing_subscriber::registry().with(
+                fmt::layer()
+                    .with_ansi(false)
+                    .with_writer(std::io::stderr)  // Specify stderr as the output target
+            ).init();
+        }
     }    
     debug!("Tool specs passed in: {}", args.tool_specs);
     let Ok(tool_definitions) = serde_json::from_str::<Vec<ToolDefinition>>(&args.tool_specs) else {
