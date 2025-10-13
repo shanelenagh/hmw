@@ -1,0 +1,15 @@
+[package]
+name = "mcpw_common"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+typify-macro = "0.4.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing="0.1"
+
+[features]
+default = ["mcp_20241105_schema"]
+mcp_20241105_schema = []
+mcp_20250618_schema = []
