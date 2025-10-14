@@ -1,0 +1,1 @@
+FastMCP server example for testing/probing protocol
