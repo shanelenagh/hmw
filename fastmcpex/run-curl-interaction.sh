@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 init_output=$(. ./curl-init.sh 2>&1)
 #echo ">>>> Init response: $init_output"
 session_id_hdr=$(echo $init_output | grep -oP 'mcp-session-id: [\d\w]+')
