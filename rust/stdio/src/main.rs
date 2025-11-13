@@ -40,8 +40,8 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
     let Ok(tool_definitions) = serde_json::from_str::<Vec<ToolDefinition>>(&args.tool_specs) else {
         return Err(("Can't parse tool list (confirm schema with help CLI option): ".to_owned() + &args.tool_specs).into());
     };
-    let tool_spec_map: HashMap<String, &ToolDefinition> = tool_definitions.iter()
-        .map(|tool| (tool.mcp_tool_spec.name.clone(), tool)).collect();
+    let tool_spec_map: HashMap<String, ToolDefinition> = tool_definitions.iter()
+        .map(|tool| (tool.mcp_tool_spec.name.clone(), tool.clone())).collect();
     let mcp_tools = tool_definitions.iter().map(|tool| tool.mcp_tool_spec.clone()).collect::<Vec<Tool>>();
 
     let stdin_handle = io::stdin().lock();

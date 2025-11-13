@@ -1,0 +1,2 @@
+#!/bin/bash
+cargo run -- -t '[ { "command": "date", "command_parameters": [{ "mcp_param": "dateParams" }], "mcp_tool_spec": { "name": "bigThing", "description": "Awesome method",     "inputSchema": { "properties": { "dateParams": { "title": "Date parameters", "type": "string" } }, "required": [], "type": "object" } } } ]'

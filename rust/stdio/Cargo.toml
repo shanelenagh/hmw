@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+argh = "0.1.13"
 mcpw_common = { path = "../common" }
 typify-macro = "0.4.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing="0.1"
 tracing-subscriber = "0.3"
-argh = "0.1.13"
 
 [profile.release]
 strip = true

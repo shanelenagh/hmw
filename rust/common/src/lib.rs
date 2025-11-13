@@ -9,7 +9,7 @@ use tracing::{debug};
 import_types!(schema="../../schemas/mcp_20241105_schema.json");
 
 /// Tool schema for passing to CLI
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ToolDefinition {
     /// Shell script or executable program to execute
     command: String,
@@ -19,7 +19,7 @@ pub struct ToolDefinition {
     pub mcp_tool_spec: Tool
 }
 /// Command parameter (either static switch, and/or mapping from MCP method parameter to command switch or positional argument)
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct CommandParameterMapping {
     /// MCP method parameter name to map to
     mcp_param: Option<String>,
@@ -95,7 +95,7 @@ pub fn mcp_init_string(id: RequestId, server_name: &str, server_version: &str) -
     );
 }
 
-pub fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definition_map: &HashMap<String, &ToolDefinition>) -> result::Result<String, serde_json::Error> {
+pub fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definition_map: &HashMap<String, ToolDefinition>) -> result::Result<String, serde_json::Error> {
     let Some(tool) = tool_definition_map.get(&request.params.name) else { //TODO: Just make this a generic function and all these parsing things can call it
         return jsonrpc_error_str(id, -32601, "Method name not found: ".to_owned() + &request.params.name);
     };
