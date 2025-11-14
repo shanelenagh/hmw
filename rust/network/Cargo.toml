@@ -11,6 +11,8 @@ mcpw_common = { path = "../common" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
+tracing="0.1"
+tracing-subscriber = "0.3"
 uuid = { version = "1.18.1", features = [ "v4"] }
 
 [profile.release]
@@ -21,3 +23,8 @@ codegen-units = 1
 incremental = false
 # Trades file size decrease for decreased performance
 #opt-level = "z"
+
+[features]
+default = ["debug_log"]
+# Whether to enable debug trace statements in code (increases binary size by >100K, if small binary really matters to you)
+debug_log = []

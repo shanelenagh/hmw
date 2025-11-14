@@ -4,15 +4,16 @@ use axum::{
     routing::get, routing::post,
     Router
 };
+use lazy_static::lazy_static;
+use mcpw_common::*;
 use std::{
     error as std_error,
     result,
     collections::HashMap,
     sync::Mutex,
 };
-use lazy_static::lazy_static;
+use tracing::{debug};
 use uuid::Uuid;
-use mcpw_common::*;
 
 
 #[derive(Debug)]
@@ -30,6 +31,12 @@ lazy_static! {
 struct Args {
     #[argh(option, short='t', description="array of tool specification command wrapper mappings in JSON format: [ {{ \"command\": \"scriptOrExecutable\", <\"command_parameters\": [ <\"mcp_param\": \"nameOfMcpMethodArgParameterToMapToCommandParam\">, <\"command_param\": \"staticCommandSwitchOrSwitchForMcpParameter\" ]>, \"mcp_tool_spec\": {{ mcpToolSpecJsonPerOfficialMcpSchema... }} }} , ... ]")]
     tool_specs: String, 
+    #[cfg(feature = "debug_log")]
+    #[argh(switch, short='d', description="debug output on stderr (will show up in console of MCP server/inspector)")]
+    debug: bool,
+    #[cfg(feature = "debug_log")]
+    #[argh(switch, short='p', description="pretty print log (including console ASCII coloring)")]
+    pretty: bool    
 }
 
 #[derive(Clone)]
@@ -40,6 +47,23 @@ struct AppState {
 #[tokio::main]
 async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
     let args: Args = argh::from_env();
+    #[cfg(feature = "debug_log")]
+    if args.debug {
+        use tracing_subscriber::{fmt, prelude::*};
+        if args.pretty {
+            tracing_subscriber::registry().with(
+                fmt::layer()
+                    .pretty()                   
+                    .with_writer(std::io::stderr)   // Specify stderr as the output target
+            ).init();
+        } else {
+            tracing_subscriber::registry().with(
+                fmt::layer()
+                    .with_ansi(false)
+                    .with_writer(std::io::stderr)  // Specify stderr as the output target
+            ).init();
+        }
+    }     
     let Ok(tool_definitions) = serde_json::from_str::<Vec<ToolDefinition>>(&args.tool_specs) else {
         return Err(("Can't parse tool list (confirm schema with help CLI option): ".to_owned() + &args.tool_specs).into());
     };
@@ -56,7 +80,7 @@ async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
     // Session map test
     let mut session_guard = SESSION_MAP.lock().unwrap();
     session_guard.insert(Uuid::new_v4().to_string(), Session {});
-    println!("Session map contents: {:?}", *session_guard);
+    debug!("Session map contents: {:?}", *session_guard);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -65,9 +89,8 @@ async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
 }
 
 async fn mcp_route(extract::State(state): extract::State<AppState>, extract::Json(payload): extract::Json<JsonrpcRequest>) -> String {
-    println!("Received MCP data with method: {}", payload.method);  // TODO: Use logging, and conslidate with one below
     let string_payload = serde_json::to_string(&payload).unwrap();
-    println!("Full payload: {}", &string_payload);                  // TODO: Use logging, and conslidate with one above
+    debug!("Received MCP data with method [{}] and full payload: {}", payload.method, &string_payload); 
     match payload.method.as_str() {
         "initialize" => {
             return mcp_init_string(payload.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")).unwrap();
