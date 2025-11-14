@@ -101,7 +101,7 @@ async fn mcp_route(extract::State(state): extract::State<AppState>, extract::Jso
             };
             return match mcp_handle_tool_call(payload.id, &tool_call_request, &state.tool_spec_map) {
                 Ok(response_str) => response_str,
-                Err(err) => jsonrpc_error_str(RequestId::from(-1), -32700, "Tool call failed at system level: ".to_string()+&err.to_string()).unwrap()
+                Err(err) => jsonrpc_error_str(RequestId::from(-1), -32603, "Tool call error: ".to_string()+&err.to_string()).unwrap()
             }   
         },        
         _ => {
