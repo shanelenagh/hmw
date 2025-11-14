@@ -64,10 +64,10 @@ async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
     return Ok(())
 }
 
-async fn mcp_route(extract::State(state): extract::State<AppState>, extract::Json(payload): extract::Json<JsonrpcRequest> /* TODO: Just bring in body, not auto parse */) -> String {
-    println!("Received MCP data with method: {}", payload.method);
-    let string_payload = serde_json::to_string_pretty(&payload).unwrap();
-    println!("Full payload: {}", &string_payload);
+async fn mcp_route(extract::State(state): extract::State<AppState>, extract::Json(payload): extract::Json<JsonrpcRequest>) -> String {
+    println!("Received MCP data with method: {}", payload.method);  // TODO: Use logging, and conslidate with one below
+    let string_payload = serde_json::to_string(&payload).unwrap();
+    println!("Full payload: {}", &string_payload);                  // TODO: Use logging, and conslidate with one above
     match payload.method.as_str() {
         "initialize" => {
             return mcp_init_string(payload.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")).unwrap();
@@ -76,7 +76,10 @@ async fn mcp_route(extract::State(state): extract::State<AppState>, extract::Jso
             let Ok(tool_call_request) = serde_json::from_str::<CallToolRequest>(&string_payload) else {
                 return jsonrpc_error_str(RequestId::from(-1), -32700, "Parsing of tool call request failed: ".to_string()+&string_payload).unwrap();
             };
-            return mcp_handle_tool_call(payload.id, &tool_call_request, &state.tool_spec_map).expect("Tool call handling failed");
+            return match mcp_handle_tool_call(payload.id, &tool_call_request, &state.tool_spec_map) {
+                Ok(response_str) => response_str,
+                Err(err) => jsonrpc_error_str(RequestId::from(-1), -32700, "Tool call failed at system level: ".to_string()+&err.to_string()).unwrap()
+            }   
         },        
         _ => {
             return jsonrpc_error_str(payload.id, -32601, "Method not found".to_string()).unwrap();
