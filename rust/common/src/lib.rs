@@ -34,8 +34,8 @@ pub struct JsonRpcServerResult {
     result: ServerResult
 }
 
-pub fn jsonrpc_error_str(request_id: RequestId, error_code: i64, message: String) -> result::Result<String, serde_json::Error> {
-    return serde_json::to_string(&JsonrpcError {
+pub fn jsonrpc_error(request_id: RequestId, error_code: i64, message: String) -> JsonrpcError {
+    return JsonrpcError {
         jsonrpc: "2.0".to_string(),
         id: request_id,
         error: JsonrpcErrorError {
@@ -43,27 +43,24 @@ pub fn jsonrpc_error_str(request_id: RequestId, error_code: i64, message: String
             message: message,
             data: None
         }
-    });
+    };
 }
 
-pub fn mcp_tools_list_string(id: RequestId, tools: &Vec<Tool>) -> result::Result<String, serde_json::Error> { 
-    return serde_json::to_string(
-        &JsonRpcServerResult {
-            jsonrpc: "2.0".to_string(),
-            id: id,
-            result: ServerResult::ListToolsResult(ListToolsResult {
-                tools: tools.to_vec(),
-                next_cursor: None,
-                meta: json!({ }).as_object().unwrap().clone()
-            })
-        }
-    ); 
+pub fn mcp_tools_list(id: RequestId, tools: &Vec<Tool>) -> JsonRpcServerResult { 
+    return JsonRpcServerResult {
+        jsonrpc: "2.0".to_string(),
+        id: id,
+        result: ServerResult::ListToolsResult(ListToolsResult {
+            tools: tools.to_vec(),
+            next_cursor: None,
+            meta: json!({ }).as_object().unwrap().clone()
+        })
+    };
 }
 
-pub fn mcp_init_string(id: RequestId, server_name: &str, server_version: &str) -> result::Result<String,  serde_json::Error> {
+pub fn mcp_init(id: RequestId, server_name: &str, server_version: &str) -> JsonRpcServerResult {
     let empty_hash: HashMap<String, serde_json::Map<String, serde_json::Value>> = HashMap::new();
-    return serde_json::to_string(
-        &JsonRpcServerResult {
+    return JsonRpcServerResult {
             jsonrpc: "2.0".to_string(),
             id: id,
             result: ServerResult::InitializeResult(
@@ -91,13 +88,12 @@ pub fn mcp_init_string(id: RequestId, server_name: &str, server_version: &str) -
                         }
                     }
             )
-        }
-    );
+        };
 }
 
-pub fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definition_map: &HashMap<String, ToolDefinition>) -> result::Result<String, serde_json::Error> {
+pub fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definition_map: &HashMap<String, ToolDefinition>) -> result::Result<JsonRpcServerResult, JsonrpcError> {
     let Some(tool) = tool_definition_map.get(&request.params.name) else { //TODO: Just make this a generic function and all these parsing things can call it
-        return jsonrpc_error_str(id, -32601, "Method name not found: ".to_owned() + &request.params.name);
+        return Err(jsonrpc_error(id, -32601, "Method name not found: ".to_owned() + &request.params.name));
     };
     let mut args: Vec<String> = Vec::new();
     // Collect args, both mapped method arguments and static command switches
@@ -124,8 +120,7 @@ pub fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_defin
         Err(ref error) => error
     };
     debug!("Got result from execution: {}", result_str);
-    return serde_json::to_string(
-        &JsonRpcServerResult {
+    return Ok(JsonRpcServerResult {
             jsonrpc: "2.0".to_string(),
             id: id,
             result: ServerResult::CallToolResult(CallToolResult {
@@ -139,8 +134,7 @@ pub fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_defin
                 is_error: Some(exec_result.is_err()),
                 meta: json!({ }).as_object().unwrap().clone()
             })
-        }        
-    );
+        });
 }
 
 pub fn execute_process(command: &str, args: Vec<String>) -> result::Result<String,  String> {
@@ -160,21 +154,3 @@ pub fn execute_process(command: &str, args: Vec<String>) -> result::Result<Strin
         }
     }
 }
-
-
-// TODO: Embedded tests baby, like below
-
-// pub fn add(left: u64, right: u64) -> u64 {
-//     left + right
-// }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-
-//     #[test]
-//     fn it_works() {
-//         let result = add(2, 2);
-//         assert_eq!(result, 4);
-//     }
-// }

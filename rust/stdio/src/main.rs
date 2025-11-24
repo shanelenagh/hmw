@@ -48,26 +48,29 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
     for line_result in stdin_handle.lines() {
         let line = line_result?;
         let Ok(jsonrpc_request) = serde_json::from_str::<JsonrpcRequest>(&line) else {
-            println!("{}", jsonrpc_error_str(RequestId::from(-1), -32700, "Parsing of request failed (check conformance with MCP Schema): ".to_string() + &line)?);     
+            println!("{}", serde_json::to_string(&jsonrpc_error(
+                RequestId::from(-1), -32700, "Parsing of request failed (check conformance with MCP Schema): ".to_string() + &line))?);     
             continue;       
         };
         debug!("Received line: {} with method {}", line, jsonrpc_request.method);
         match jsonrpc_request.method.as_str() {
             "initialize" => {
-                println!("{}", mcp_init_string(jsonrpc_request.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))?);
+                println!("{}", serde_json::to_string(&mcp_init(jsonrpc_request.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")))?);
             },
             "tools/call" => {
                 let Ok(tool_call_request) = serde_json::from_str::<CallToolRequest>(&line) else {
-                    println!("{}", jsonrpc_error_str(RequestId::from(-1), -32700, "Parsing of tool call request failed: ".to_string()+&line)?);
+                    println!("{}", serde_json::to_string(&jsonrpc_error(
+                        RequestId::from(-1), -32700, "Parsing of tool call request failed: ".to_string()+&line))?);
                     continue;
                 };
-                println!("{}", mcp_handle_tool_call(jsonrpc_request.id, &tool_call_request, &tool_spec_map)?);
+                println!("{}", serde_json::to_string(&mcp_handle_tool_call(jsonrpc_request.id, &tool_call_request, &tool_spec_map))?);
             },
             "tools/list" => {
-                println!("{}", mcp_tools_list_string(jsonrpc_request.id, &mcp_tools)?);
+                println!("{}", serde_json::to_string(&mcp_tools_list(jsonrpc_request.id, &mcp_tools))?);
             },
             _ => {
-                println!("{}", jsonrpc_error_str(jsonrpc_request.id, -32601, "MCP method not found: ".to_string() + jsonrpc_request.method.as_str())?);
+                println!("{}", serde_json::to_string(&jsonrpc_error(
+                    jsonrpc_request.id, -32601, "MCP method not found: ".to_string() + jsonrpc_request.method.as_str()))?);
             }
         }     
     }

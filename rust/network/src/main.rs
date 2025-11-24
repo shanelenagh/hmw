@@ -12,6 +12,7 @@ use std::{
     collections::HashMap,
     sync::Mutex,
 };
+use tower_http::cors::{CorsLayer, Any};
 use tracing::{debug};
 use uuid::Uuid;
 
@@ -41,7 +42,8 @@ struct Args {
 
 #[derive(Clone)]
 struct AppState {
-    tool_spec_map: HashMap<String, ToolDefinition>
+    tool_spec_map: HashMap<String, ToolDefinition>,
+    tools: Vec<Tool>
 }
 
 #[tokio::main]
@@ -69,13 +71,15 @@ async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
     };
     let state = AppState { 
         tool_spec_map: tool_definitions.iter()
-            .map(|tool| (tool.mcp_tool_spec.name.clone(), tool.clone())).collect()
+            .map(|tool| (tool.mcp_tool_spec.name.clone(), tool.clone())).collect(),
+        tools: tool_definitions.iter().map(|tool| tool.mcp_tool_spec.clone()).collect::<Vec<Tool>>()
     };    
     // build our application with a single route
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/mcp", post(mcp_route))
-        .with_state(state);
+        .with_state(state)
+        .layer(CorsLayer::new().allow_origin(Any));
 
     // Session map test
     let mut session_guard = SESSION_MAP.lock().unwrap();
@@ -88,24 +92,30 @@ async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
     return Ok(())
 }
 
-async fn mcp_route(extract::State(state): extract::State<AppState>, extract::Json(payload): extract::Json<JsonrpcRequest>) -> String {
+async fn mcp_route(extract::State(state): extract::State<AppState>, extract::Json(payload): extract::Json<JsonrpcRequest>) 
+    -> result::Result<extract::Json<JsonRpcServerResult>, extract::Json<JsonrpcError>> 
+{
     let string_payload = serde_json::to_string(&payload).unwrap();
     debug!("Received MCP data with method [{}] and full payload: {}", payload.method, &string_payload); 
     match payload.method.as_str() {
         "initialize" => {
-            return mcp_init_string(payload.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")).unwrap();
+            return Ok(axum::Json(mcp_init(payload.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))));
         },
         "tools/call" => {
             let Ok(tool_call_request) = serde_json::from_str::<CallToolRequest>(&string_payload) else {
-                return jsonrpc_error_str(RequestId::from(-1), -32700, "Parsing of tool call request failed: ".to_string()+&string_payload).unwrap();
+                return Err(axum::Json(jsonrpc_error(
+                    RequestId::from(-1), -32700, "Parsing of tool call request failed: ".to_string()+&string_payload)));
             };
             return match mcp_handle_tool_call(payload.id, &tool_call_request, &state.tool_spec_map) {
-                Ok(response_str) => response_str,
-                Err(err) => jsonrpc_error_str(RequestId::from(-1), -32603, "Tool call error: ".to_string()+&err.to_string()).unwrap()
+                Ok(response) => Ok(axum::Json(response)),
+                Err(err) => Err(axum::Json(err))
             }   
-        },        
+        },  
+        "tools/list" => {
+            return Ok(axum::Json(mcp_tools_list(payload.id, &state.tools)));
+        },              
         _ => {
-            return jsonrpc_error_str(payload.id, -32601, "Method not found".to_string()).unwrap();
+            return Err(axum::Json(jsonrpc_error(payload.id, -32601, "Method not found".to_string())));
         }
     }
 }
