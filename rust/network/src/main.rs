@@ -1,7 +1,7 @@
 use argh::FromArgs;
 use axum::{
     extract,
-    routing::get, routing::post,
+    /*routing::get,*/ routing::post,
     Router
 };
 use lazy_static::lazy_static;
@@ -17,10 +17,10 @@ use tracing::{debug};
 use uuid::Uuid;
 
 
+// TODO: Fill out and use this for MCP sessions
 #[derive(Debug)]
 struct Session {
 }
-
 lazy_static! {
     static ref SESSION_MAP: Mutex<HashMap<String, Session>> = {
         Mutex::new(HashMap::new())
@@ -46,26 +46,11 @@ struct AppState {
     tools: Vec<Tool>
 }
 
+
 #[tokio::main]
 async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
     let args: Args = argh::from_env();
-    #[cfg(feature = "debug_log")]
-    if args.debug {
-        use tracing_subscriber::{fmt, prelude::*};
-        if args.pretty {
-            tracing_subscriber::registry().with(
-                fmt::layer()
-                    .pretty()                   
-                    .with_writer(std::io::stderr)   // Specify stderr as the output target
-            ).init();
-        } else {
-            tracing_subscriber::registry().with(
-                fmt::layer()
-                    .with_ansi(false)
-                    .with_writer(std::io::stderr)  // Specify stderr as the output target
-            ).init();
-        }
-    }     
+    conditionally_enable_debugging(&args);
     let Ok(tool_definitions) = serde_json::from_str::<Vec<ToolDefinition>>(&args.tool_specs) else {
         return Err(("Can't parse tool list (confirm schema with help CLI option): ".to_owned() + &args.tool_specs).into());
     };
@@ -76,7 +61,7 @@ async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
     };    
     // build our application with a single route
     let app = Router::new()
-        .route("/", get(|| async { "Hello, World!" }))
+        //.route("/", get(|| async { "Hello, World!" }))
         .route("/mcp", post(mcp_route))
         .with_state(state)
         .layer(CorsLayer::new().allow_origin(Any));
@@ -118,4 +103,24 @@ async fn mcp_route(extract::State(state): extract::State<AppState>, extract::Jso
             return Err(axum::Json(jsonrpc_error(payload.id, -32601, "Method not found".to_string())));
         }
     }
+}
+
+fn conditionally_enable_debugging(args: &Args) {
+    #[cfg(feature = "debug_log")]
+    if args.debug {
+        use tracing_subscriber::{fmt, prelude::*};
+        if args.pretty {
+            tracing_subscriber::registry().with(
+                fmt::layer()
+                    .pretty()                   
+                    .with_writer(std::io::stderr)   // Specify stderr as the output target
+            ).init();
+        } else {
+            tracing_subscriber::registry().with(
+                fmt::layer()
+                    .with_ansi(false)
+                    .with_writer(std::io::stderr)  // Specify stderr as the output target
+            ).init();
+        }
+    } 
 }
