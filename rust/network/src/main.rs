@@ -4,28 +4,28 @@ use axum::{
     /*routing::get,*/ routing::post,
     Router
 };
-use lazy_static::lazy_static;
+//use lazy_static::lazy_static;
 use mcpw_common::*;
 use std::{
     error as std_error,
     result,
     collections::HashMap,
-    sync::Mutex,
+    //sync::Mutex,
 };
 use tower_http::cors::{CorsLayer, Any};
 use tracing::{debug};
-use uuid::Uuid;
+//use uuid::Uuid;
 
 
 // TODO: Fill out and use this for MCP sessions
-#[derive(Debug)]
-struct Session {
-}
-lazy_static! {
-    static ref SESSION_MAP: Mutex<HashMap<String, Session>> = {
-        Mutex::new(HashMap::new())
-    };
-}
+// #[derive(Debug)]
+// struct Session {
+// }
+// lazy_static! {
+//     static ref SESSION_MAP: Mutex<HashMap<String, Session>> = {
+//         Mutex::new(HashMap::new())
+//     };
+// }
 
 /// TODO: Move to common lib !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #[derive(FromArgs)]
@@ -43,7 +43,8 @@ struct Args {
 #[derive(Clone)]
 struct AppState {
     tool_spec_map: HashMap<String, ToolDefinition>,
-    tools: Vec<Tool>
+    tools: Vec<Tool>,
+    //sessions: SESSION_MAP
 }
 
 
@@ -66,9 +67,9 @@ async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
         .layer(CorsLayer::new().allow_origin(Any));
 
     // Session map test
-    let mut session_guard = SESSION_MAP.lock().unwrap();
-    session_guard.insert(Uuid::new_v4().to_string(), Session {});
-    debug!("Session map contents: {:?}", *session_guard);
+    // let mut session_guard = SESSION_MAP.lock().unwrap();
+    // session_guard.insert(Uuid::new_v4().to_string(), Session {});
+    // debug!("Session map contents: {:?}", *session_guard);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
