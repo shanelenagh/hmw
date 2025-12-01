@@ -55,8 +55,7 @@ async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
         return Err(("Can't parse tool list (confirm schema with help CLI option): ".to_owned() + &args.tool_specs).into());
     };
     let state = AppState { 
-        tool_spec_map: tool_definitions.iter()
-            .map(|tool| (tool.mcp_tool_spec.name.clone(), tool.clone())).collect(),
+        tool_spec_map: tool_definitions.iter().map(|tool| (tool.mcp_tool_spec.name.clone(), tool.clone())).collect(),
         tools: tool_definitions.iter().map(|tool| tool.mcp_tool_spec.clone()).collect::<Vec<Tool>>()
     };    
     // build our application with a single route
@@ -100,7 +99,7 @@ async fn mcp_route(extract::State(state): extract::State<AppState>, extract::Jso
             return Ok(axum::Json(mcp_tools_list(payload.id, &state.tools)));
         },              
         _ => {
-            return Err(axum::Json(jsonrpc_error(payload.id, -32601, "Method not found".to_string())));
+            return Err(axum::Json(jsonrpc_error(payload.id, -32601, "Method not found: ".to_string() + payload.method.as_str())));
         }
     }
 }
