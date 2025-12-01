@@ -1,16 +1,14 @@
 use argh::FromArgs;
 use axum::{
     extract,
-    /*routing::get,*/ routing::post,
+    routing::post,
     Router
 };
-//use lazy_static::lazy_static;
 use mcpw_common::*;
 use std::{
     error as std_error,
     result,
-    collections::HashMap,
-    //sync::Mutex,
+    collections::HashMap
 };
 use tower_http::cors::{CorsLayer, Any};
 use tracing::{debug};
@@ -18,13 +16,8 @@ use tracing::{debug};
 
 
 // TODO: Fill out and use this for MCP sessions
-// #[derive(Debug)]
+// #[derive(Debug, Clone)]
 // struct Session {
-// }
-// lazy_static! {
-//     static ref SESSION_MAP: Mutex<HashMap<String, Session>> = {
-//         Mutex::new(HashMap::new())
-//     };
 // }
 
 /// TODO: Move to common lib !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -44,7 +37,7 @@ struct Args {
 struct AppState {
     tool_spec_map: HashMap<String, ToolDefinition>,
     tools: Vec<Tool>,
-    //sessions: SESSION_MAP
+    //sessions: HashMap<String, Session>
 }
 
 
@@ -57,19 +50,14 @@ async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
     };
     let state = AppState { 
         tool_spec_map: tool_definitions.iter().map(|tool| (tool.mcp_tool_spec.name.clone(), tool.clone())).collect(),
-        tools: tool_definitions.iter().map(|tool| tool.mcp_tool_spec.clone()).collect::<Vec<Tool>>()
+        tools: tool_definitions.iter().map(|tool| tool.mcp_tool_spec.clone()).collect::<Vec<Tool>>(),
+        //sessions: HashMap::new()
     };    
     // build our application with a single route
     let app = Router::new()
-        //.route("/", get(|| async { "Hello, World!" }))
         .route("/mcp", post(mcp_route))
         .with_state(state)
         .layer(CorsLayer::new().allow_origin(Any));
-
-    // Session map test
-    // let mut session_guard = SESSION_MAP.lock().unwrap();
-    // session_guard.insert(Uuid::new_v4().to_string(), Session {});
-    // debug!("Session map contents: {:?}", *session_guard);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
