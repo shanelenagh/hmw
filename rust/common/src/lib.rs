@@ -1,3 +1,4 @@
+use argh::FromArgs;
 use serde_json::json;
 use serde::{Deserialize, Serialize};
 use typify_macro::import_types;
@@ -7,6 +8,45 @@ use tracing::{debug};
 // TODO: Wrap this in mod mcp {...}?
 // TODO: Put feature conditional here, for version of schema to use
 import_types!(schema="../../schemas/mcp_20241105_schema.json");
+
+/// MCP wrapper program
+#[derive(FromArgs, Clone)]
+pub struct Args {
+    #[argh(option, short='t', description="array of tool specification command wrapper mappings in JSON format: [ {{ \"command\": \"scriptOrExecutable\", <\"command_parameters\": [ <\"mcp_param\": \"nameOfMcpMethodArgParameterToMapToCommandParam\">, <\"command_param\": \"staticCommandSwitchOrSwitchForMcpParameter\" ]>, \"mcp_tool_spec\": {{ mcpToolSpecJsonPerOfficialMcpSchema... }} }} , ... ]")]
+    pub tool_specs: String, 
+    #[cfg(feature = "debug_log")]
+    #[argh(switch, short='d', description="debug output on stderr (will show up in console of MCP server/inspector)")]
+    pub debug: bool,
+    #[cfg(feature = "debug_log")]
+    #[argh(switch, short='p', description="pretty print log (including console ASCII coloring)")]
+    pub pretty: bool,    
+    #[argh(switch, short='s', description="use sessions (via Mcp-Session-Id header)")]
+    pub use_session: bool  
+}
+
+pub fn get_args() -> Args {
+    return argh::from_env();
+}
+
+pub fn conditionally_enable_debugging(args: &Args) {
+    #[cfg(feature = "debug_log")]
+    if args.debug {
+        use tracing_subscriber::{fmt, prelude::*};
+        if args.pretty {
+            tracing_subscriber::registry().with(
+                fmt::layer()
+                    .pretty()                   
+                    .with_writer(std::io::stderr)   // Specify stderr as the output target
+            ).init();
+        } else {
+            tracing_subscriber::registry().with(
+                fmt::layer()
+                    .with_ansi(false)
+                    .with_writer(std::io::stderr)  // Specify stderr as the output target
+            ).init();
+        }
+    } 
+}
 
 /// Tool schema for passing to CLI
 #[derive(Serialize, Deserialize, Clone)]
@@ -92,7 +132,7 @@ pub fn mcp_init(id: RequestId, server_name: &str, server_version: &str) -> JsonR
 }
 
 pub fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_definition_map: &HashMap<String, ToolDefinition>) -> result::Result<JsonRpcServerResult, JsonrpcError> {
-    let Some(tool) = tool_definition_map.get(&request.params.name) else { //TODO: Just make this a generic function and all these parsing things can call it
+    let Some(tool) = tool_definition_map.get(&request.params.name) else { 
         return Err(jsonrpc_error(id, -32601, "Method name not found: ".to_owned() + &request.params.name));
     };
     let mut args: Vec<String> = Vec::new();
@@ -101,7 +141,7 @@ pub fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_defin
         for cp in tool.command_parameters.as_ref().unwrap().iter() {
             if cp.mcp_param.is_some() { 
                 let arg_value: Option<&serde_json::Value> = request.params.arguments.get(cp.mcp_param.as_ref().unwrap());
-                if arg_value.is_none() {  // They didn't pass this value
+                if arg_value.is_none() {  // They didn't pass this value -> just make call without it
                     continue;   
                 }
                 if cp.command_param.is_some() {
