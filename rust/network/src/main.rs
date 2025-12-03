@@ -1,20 +1,16 @@
 use argh::FromArgs;
 use axum::{
     extract,
-    routing::post,
     http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Json},
-    Router
+    response::{IntoResponse, Response}
 };
 use mcpw_common::*;
 use std::{
-    error as std_error,
-    result,
     collections::HashMap
 };
 use tower_http::cors::{CorsLayer, Any};
 use tracing::{debug};
-//use uuid::Uuid;
+use uuid::Uuid;
 
 
 // TODO: Fill out and use this for MCP sessions
@@ -47,8 +43,8 @@ struct AppState {
 
 
 #[tokio::main]
-async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
-    let args: Args = argh::from_env();
+async fn main()  -> std::result::Result<(), Box<dyn std::error::Error>> {
+    let args = argh::from_env();
     conditionally_enable_debugging(&args);
     let Ok(tool_definitions) = serde_json::from_str::<Vec<ToolDefinition>>(&args.tool_specs) else {
         return Err(("Can't parse tool list (confirm schema with help CLI option): ".to_owned() + &args.tool_specs).into());
@@ -60,19 +56,17 @@ async fn main()  -> result::Result<(), Box<dyn std_error::Error>> {
         sessions: HashMap::new()
     };    
     // build our application with a single route
-    let app = Router::new()
-        .route("/mcp", post(mcp_route))
+    let app = axum::Router::new()
+        .route("/mcp", axum::routing::post(mcp_route))
         .with_state(state)
         .layer(CorsLayer::new().allow_origin(Any));
-
     // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap(), app).await.unwrap();
     return Ok(())
 }
 
-async fn mcp_route(extract::State(mut state): extract::State<AppState>, extract::Json(payload): extract::Json<JsonrpcRequest>) 
-    -> axum::response::Response 
+async fn mcp_route(extract::State(mut state): extract::State<AppState>, 
+    extract::Json(payload): extract::Json<JsonrpcRequest>) -> Response 
 {
     let string_payload = serde_json::to_string(&payload).unwrap();
     debug!("Received MCP data with method [{}] and full payload: {}", payload.method, &string_payload); 
@@ -80,28 +74,28 @@ async fn mcp_route(extract::State(mut state): extract::State<AppState>, extract:
         "initialize" => {
             let mut headers = HeaderMap::new();
             if state.args.use_session {
-                let session_id = uuid::Uuid::new_v4().to_string();
+                let session_id = Uuid::new_v4().to_string();
                 headers.insert("Mcp-Session-Id", session_id.parse().unwrap());
                 state.sessions.insert(session_id, Session{});
             } 
-            return (StatusCode::OK, headers, Json(mcp_init(payload.id, 
+            return (StatusCode::OK, headers, axum::Json(mcp_init(payload.id, 
                 env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")))).into_response();
         },
         "tools/call" => {
             let Ok(tool_call_request) = serde_json::from_str::<CallToolRequest>(&string_payload) else {
-                return (StatusCode::UNPROCESSABLE_ENTITY, Json(jsonrpc_error(RequestId::from(-1), -32700, 
+                return (StatusCode::UNPROCESSABLE_ENTITY, axum::Json(jsonrpc_error(RequestId::from(-1), -32700, 
                     "Parsing of tool call request failed: ".to_string()+&string_payload))).into_response();
             };
             return match mcp_handle_tool_call(payload.id, &tool_call_request, &state.tool_spec_map) {
-                Ok(response) => (StatusCode::OK, Json(response)).into_response(),
-                Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, Json(err)).into_response()
+                Ok(response) => (StatusCode::OK, axum::Json(response)).into_response(),
+                Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, axum::Json(err)).into_response()
             }   
         },  
         "tools/list" => {
-            return (StatusCode::OK, Json(mcp_tools_list(payload.id, &state.tools))).into_response();
+            return (StatusCode::OK, axum::Json(mcp_tools_list(payload.id, &state.tools))).into_response();
         },              
         _ => {
-            return (StatusCode::UNPROCESSABLE_ENTITY, Json(jsonrpc_error(payload.id, -32601, 
+            return (StatusCode::UNPROCESSABLE_ENTITY, axum::Json(jsonrpc_error(payload.id, -32601, 
                 "Method not found: ".to_string() + payload.method.as_str()))).into_response();
         }
     }
