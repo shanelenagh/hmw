@@ -21,7 +21,13 @@ pub struct Args {
     #[argh(switch, short='p', description="pretty print log (including console ASCII coloring)")]
     pub pretty: bool,    
     #[argh(switch, short='s', description="use sessions (via Mcp-Session-Id header)")]
-    pub use_session: bool  
+    pub use_session: bool,
+    #[cfg(feature = "network_client")]
+    #[argh(option, default="String::from(\"0.0.0.0\")", description="host address to listen on")]
+    pub host: String,
+    #[cfg(feature = "network_client")]
+    #[argh(option, default="3000", description="port to listen on")]
+    pub port: u16  
 }
 
 pub fn get_args() -> Args {

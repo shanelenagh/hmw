@@ -36,7 +36,7 @@ async fn main()  -> std::result::Result<(), Box<dyn std::error::Error>> {
         return Err(("Can't parse tool list (confirm schema with help CLI option): ".to_owned() + &args.tool_specs).into());
     };
     let state = AppState { 
-        args: args,
+        args: args.clone(),
         tool_spec_map: tool_definitions.iter().map(|tool| (tool.mcp_tool_spec.name.clone(), tool.clone())).collect(),
         tools: tool_definitions.iter().map(|tool| tool.mcp_tool_spec.clone()).collect::<Vec<Tool>>(),
         sessions: HashMap::new()
@@ -46,8 +46,9 @@ async fn main()  -> std::result::Result<(), Box<dyn std::error::Error>> {
         .route("/mcp", post(mcp_route))
         .with_state(state)
         .layer(CorsLayer::new().allow_origin(Any));
+    debug!("Starting MCP network server on {}:{}", &args.host, &args.port);
     // run our app with hyper, listening globally on port 3000
-    axum::serve(TcpListener::bind("0.0.0.0:3000").await.unwrap(), app).await.unwrap();
+    axum::serve(TcpListener::bind(args.host + ":" + &args.port.to_string()).await.unwrap(), app).await.unwrap();
     return Ok(())
 }
 

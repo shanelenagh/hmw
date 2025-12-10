@@ -17,3 +17,4 @@ mcp_20241105_schema = []
 mcp_20250618_schema = []
 # Whether to enable debug trace statements in code (increases binary size by >100K, if small binary really matters to you)
 debug_log = []
+network_client = []
