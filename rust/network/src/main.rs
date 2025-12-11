@@ -47,7 +47,6 @@ async fn main()  -> std::result::Result<(), Box<dyn std::error::Error>> {
         .with_state(state)
         .layer(CorsLayer::new().allow_origin(Any));
     debug!("Starting MCP network server on {}:{}", &args.host, &args.port);
-    // run our app with hyper, listening globally on port 3000
     axum::serve(TcpListener::bind(args.host + ":" + &args.port.to_string()).await.unwrap(), app).await.unwrap();
     return Ok(())
 }
