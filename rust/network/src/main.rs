@@ -1,5 +1,5 @@
 use axum::{
-    extract,
+    extract::{Json, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::post
@@ -51,8 +51,7 @@ async fn main()  -> std::result::Result<(), Box<dyn std::error::Error>> {
     return Ok(())
 }
 
-async fn mcp_route(extract::State(mut state): extract::State<AppState>, 
-    extract::Json(payload): extract::Json<JsonrpcRequest>) -> Response 
+async fn mcp_route(State(mut state): State<AppState>, Json(payload): Json<JsonrpcRequest>) -> Response 
 {
     let string_payload = to_string(&payload).unwrap();
     debug!("Received MCP data with method [{}] and full payload: {}", payload.method, &string_payload); 
