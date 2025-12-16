@@ -45,7 +45,7 @@ async fn main()  -> std::result::Result<(), Box<dyn std::error::Error>> {
     let app = axum::Router::new()
         .route("/mcp", post(mcp_route))
         .with_state(state)
-        .layer(CorsLayer::new().allow_origin(Any));
+        .layer(CorsLayer::new().allow_origin(Any)); // TODO: Make CORS configurable
     debug!("Starting MCP network server on {}:{}", &args.host, &args.port);
     axum::serve(TcpListener::bind(args.host + ":" + &args.port.to_string()).await.unwrap(), app).await.unwrap();
     return Ok(())
