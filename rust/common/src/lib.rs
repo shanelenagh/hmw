@@ -1,13 +1,16 @@
 use argh::FromArgs;
 use serde_json::json;
 use serde::{Deserialize, Serialize};
-use typify_macro::import_types;
 use std::{process::Command, result, collections::HashMap};
 use tracing::{debug};
+use typify_macro::import_types;
+
 
 // TODO: Wrap this in mod mcp {...}?
-// TODO: Put feature conditional here, for version of schema to use
+#[cfg(feature = "mcp_20241105_schema")]
 import_types!(schema="../../schemas/mcp_20241105_schema.json");
+#[cfg(feature = "mcp_20250618_schema")]
+import_types!(schema="../../schemas/mcp_20250618_schema.json");
 
 /// MCP wrapper program
 #[derive(FromArgs, Clone)]
