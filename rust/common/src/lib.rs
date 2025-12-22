@@ -186,7 +186,7 @@ pub fn mcp_handle_tool_call(id: RequestId, request: &CallToolRequest, tool_defin
         });
 }
 
-pub fn execute_process(command: &str, args: Vec<String>) -> result::Result<String,  String> {
+fn execute_process(command: &str, args: Vec<String>) -> result::Result<String,  String> {
     let output = Command::new(command)
         .args(args.as_slice())
         .output();
