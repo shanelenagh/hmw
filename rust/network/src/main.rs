@@ -2,7 +2,7 @@ use axum::{
     extract::{Json, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    routing::post
+    routing::post, routing::delete
 };
 use mcpw::*;
 use serde_json::{from_str, to_string};
@@ -44,6 +44,7 @@ async fn main()  -> std::result::Result<(), Box<dyn std::error::Error>> {
     // build our application with a single route
     let app = axum::Router::new()
         .route("/mcp", post(mcp_route))
+        .route("/mcp", delete(mcp_delete_session_route))
         .with_state(state)
         .layer(CorsLayer::new().allow_origin(Any)); // TODO: Make CORS configurable
     debug!("Starting MCP network server on {}:{}", &args.host, &args.port);
@@ -94,6 +95,21 @@ async fn mcp_route(State(mut state): State<AppState>, headers: HeaderMap, Json(p
         }
     }
 }
+
+async fn mcp_delete_session_route(State(mut state): State<AppState>, headers: HeaderMap, Json(payload): Json<JsonrpcRequest>) -> Response {
+    if !state.args.use_session {
+        return (StatusCode::METHOD_NOT_ALLOWED, axum::Json(jsonrpc_error(
+            payload.id, -32000, "Session management is not enabled on this MCP server".to_string()))).into_response();
+    }
+    if let Err(err_response) = validate_session(&payload.id, &headers, &state.sessions) {
+        return err_response;
+    } 
+    if let Some(session_id_header) = headers.get("Mcp-Session-Id") {
+        let session_id = session_id_header.to_str().unwrap();
+        state.sessions.remove(session_id);
+    }
+    return (StatusCode::OK).into_response();
+} 
 
 fn validate_session(id: &RequestId, headers: &HeaderMap, sessions: &HashMap<String, Session>) -> std::result::Result<(), Response> {
     if let Some(session_id_header) = headers.get("Mcp-Session-Id") {
