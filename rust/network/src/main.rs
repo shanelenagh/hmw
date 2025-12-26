@@ -51,7 +51,7 @@ async fn main()  -> std::result::Result<(), Box<dyn std::error::Error>> {
     return Ok(())
 }
 
-async fn mcp_route(State(mut state): State<AppState>, Json(payload): Json<JsonrpcRequest>) -> Response 
+async fn mcp_route(State(mut state): State<AppState>, headers: HeaderMap, Json(payload): Json<JsonrpcRequest>) -> Response 
 {
     let string_payload = to_string(&payload).unwrap();
     debug!("Received MCP data with method [{}] and full payload: {}", payload.method, &string_payload); 
@@ -66,6 +66,11 @@ async fn mcp_route(State(mut state): State<AppState>, Json(payload): Json<Jsonrp
             return (StatusCode::OK, headers, axum::Json(mcp_init(payload.id))).into_response();
         },
         "tools/call" => {
+            if state.args.use_session {
+                if let Err(err_response) = validate_session(&payload.id, &headers, &state.sessions) {
+                    return err_response;
+                }
+            }
             let Ok(tool_call_request) = from_str::<CallToolRequest>(&string_payload) else {
                 return (StatusCode::UNPROCESSABLE_ENTITY, axum::Json(jsonrpc_error(RequestId::from(-1), -32700, 
                     "Parsing of tool call request failed: ".to_string()+&string_payload))).into_response();
@@ -76,6 +81,11 @@ async fn mcp_route(State(mut state): State<AppState>, Json(payload): Json<Jsonrp
             }   
         },  
         "tools/list" => {
+            if state.args.use_session {
+                if let Err(err_response) = validate_session(&payload.id, &headers, &state.sessions) {
+                    return err_response;
+                }
+            }            
             return (StatusCode::OK, axum::Json(mcp_tools_list(payload.id, &state.tools))).into_response();
         },              
         _ => {
@@ -83,4 +93,18 @@ async fn mcp_route(State(mut state): State<AppState>, Json(payload): Json<Jsonrp
                 "Method not found: ".to_string() + payload.method.as_str()))).into_response();
         }
     }
+}
+
+fn validate_session(id: &RequestId, headers: &HeaderMap, sessions: &HashMap<String, Session>) -> std::result::Result<(), Response> {
+    if let Some(session_id_header) = headers.get("Mcp-Session-Id") {
+        let session_id = session_id_header.to_str().unwrap();
+        if !sessions.contains_key(session_id) {
+            return Err((StatusCode::NOT_FOUND, axum::Json(jsonrpc_error(
+                id.clone(), -32000, "Invalid or expired session ID provided in Mcp-Session-Id header".to_string()))).into_response());
+        }
+    } else {
+        return Err((StatusCode::BAD_REQUEST, axum::Json(jsonrpc_error(
+            id.clone(), -32000, "No session ID provided in Mcp-Session-Id header".to_string()))).into_response());
+    }
+    return Ok(());
 }
