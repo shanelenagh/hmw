@@ -63,8 +63,7 @@ async fn mcp_route(State(mut state): State<AppState>, Json(payload): Json<Jsonrp
                 headers.insert("Mcp-Session-Id", session_id.parse().unwrap());
                 state.sessions.insert(session_id, Session{});
             } 
-            return (StatusCode::OK, headers, axum::Json(mcp_init(payload.id, 
-                env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")))).into_response();
+            return (StatusCode::OK, headers, axum::Json(mcp_init(payload.id))).into_response();
         },
         "tools/call" => {
             let Ok(tool_call_request) = from_str::<CallToolRequest>(&string_payload) else {

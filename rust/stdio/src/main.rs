@@ -25,7 +25,7 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
         debug!("Received line: {} with method {}", line, jsonrpc_request.method);
         match jsonrpc_request.method.as_str() {
             "initialize" => {
-                println!("{}", to_string(&mcp_init(jsonrpc_request.id, env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")))?);
+                println!("{}", to_string(&mcp_init(jsonrpc_request.id))?);
             },
             "tools/call" => {
                 let Ok(tool_call_request) = from_str::<CallToolRequest>(&line) else {

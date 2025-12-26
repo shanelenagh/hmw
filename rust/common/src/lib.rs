@@ -1,7 +1,7 @@
 use argh::FromArgs;
 use serde_json::json;
 use serde::{Deserialize, Serialize};
-use std::{process::Command, result, collections::HashMap};
+use std::{process::Command, result, collections::HashMap, option::Option};
 use tracing::{debug};
 use typify_macro::import_types;
 
@@ -25,6 +25,10 @@ pub struct Args {
     pub pretty: bool,    
     #[argh(switch, short='s', description="use sessions (via Mcp-Session-Id header)")]
     pub use_session: bool,
+    #[argh(option, description="name of MCP server to declare to clients")]
+    pub server_name: Option<String>,
+    #[argh(option, description="version of MCP server to declare to clients")]
+    pub server_version: Option<String>,
     #[cfg(feature = "network_client")]
     #[argh(option, default="String::from(\"0.0.0.0\")", description="host address to listen on")]
     pub host: String,
@@ -107,8 +111,11 @@ pub fn mcp_tools_list(id: RequestId, tools: &Vec<Tool>) -> JsonRpcServerResult {
     };
 }
 
-pub fn mcp_init(id: RequestId, server_name: &str, server_version: &str) -> JsonRpcServerResult {
+pub fn mcp_init(id: RequestId) -> JsonRpcServerResult {
     let empty_hash: HashMap<String, serde_json::Map<String, serde_json::Value>> = HashMap::new();
+    let args = get_args();
+    let server_name = &args.server_name.clone().or(Some(env!("CARGO_PKG_NAME").to_string())).unwrap();
+    let server_version = &args.server_version.clone().or(Some(env!("CARGO_PKG_VERSION").to_string())).unwrap();
     return JsonRpcServerResult {
             jsonrpc: "2.0".to_string(),
             id: id,
