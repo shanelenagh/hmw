@@ -1,7 +1,7 @@
 use serde_json::{from_str, to_string};
 use std::{io::self, io::BufRead, result, error as std_error, collections::HashMap};
 use tracing::{debug};
-use mcpw_common::*;
+use mcpw::*;
 
 fn main() -> result::Result<(), Box<dyn std_error::Error>> {
     let args = get_args();

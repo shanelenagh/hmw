@@ -4,7 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::post
 };
-use mcpw_common::*;
+use mcpw::*;
 use serde_json::{from_str, to_string};
 use std::collections::HashMap;
 use tokio::{net::TcpListener, main};

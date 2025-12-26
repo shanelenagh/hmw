@@ -7,7 +7,7 @@ edition = "2024"
 axum = "0.8.4"
 tower-http = { version ="0.6.6", features = ["cors"] }
 lazy_static = "1.5.0"
-mcpw_common = { path = "../common", features = [ "network_client" ] }
+mcpw = { path = "../common", features = [ "network_client" ] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }

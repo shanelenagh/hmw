@@ -334,7 +334,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
-name = "mcpw_common"
+name = "mcpw"
 version = "0.1.0"
 dependencies = [
  "argh",
@@ -351,7 +351,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "lazy_static",
- "mcpw_common",
+ "mcpw",
  "serde",
  "serde_json",
  "tokio",
@@ -365,7 +365,7 @@ name = "mcpws"
 version = "0.1.0"
 dependencies = [
  "argh",
- "mcpw_common",
+ "mcpw",
  "serde",
  "serde_json",
  "tracing",
