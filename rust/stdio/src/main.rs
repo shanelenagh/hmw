@@ -14,8 +14,7 @@ fn main() -> result::Result<(), Box<dyn std_error::Error>> {
         .map(|tool| (tool.mcp_tool_spec.name.clone(), tool.clone())).collect();
     let mcp_tools = tool_definitions.iter().map(|tool| tool.mcp_tool_spec.clone()).collect::<Vec<Tool>>();
 
-    let stdin_handle = io::stdin().lock();
-    for line_result in stdin_handle.lines() {
+    for line_result in io::stdin().lock().lines() {
         let line = line_result?;
         let Ok(jsonrpc_request) = from_str::<JsonrpcRequest>(&line) else {
             println!("{}", to_string(&jsonrpc_error(
