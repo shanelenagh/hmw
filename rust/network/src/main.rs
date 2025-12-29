@@ -67,10 +67,8 @@ async fn mcp_route(State(mut state): State<AppState>, headers: HeaderMap, Json(p
             return (StatusCode::OK, headers, axum::Json(mcp_init(payload.id))).into_response();
         },
         "tools/call" => {
-            if state.args.use_session {
-                if let Err(err_response) = validate_session(&payload.id, &headers, &state.sessions) {
-                    return err_response;
-                }
+            if state.args.use_session && let Err(err_response) = validate_session(&payload.id, &headers, &state.sessions) {
+                return err_response;
             }
             let Ok(tool_call_request) = from_str::<CallToolRequest>(&string_payload) else {
                 return (StatusCode::UNPROCESSABLE_ENTITY, axum::Json(jsonrpc_error(RequestId::from(-1), -32700, 
@@ -82,10 +80,8 @@ async fn mcp_route(State(mut state): State<AppState>, headers: HeaderMap, Json(p
             }   
         },  
         "tools/list" => {
-            if state.args.use_session {
-                if let Err(err_response) = validate_session(&payload.id, &headers, &state.sessions) {
-                    return err_response;
-                }
+            if state.args.use_session && let Err(err_response) = validate_session(&payload.id, &headers, &state.sessions) {
+                return err_response;
             }            
             return (StatusCode::OK, axum::Json(mcp_tools_list(payload.id, &state.tools))).into_response();
         },              
