@@ -1,9 +1,9 @@
 use serde_json::{from_str, to_string};
-use std::{io::self, io::BufRead, result, error as std_error, collections::HashMap};
+use std::{io::self, io::BufRead, result::Result, error::Error, collections::HashMap};
 use tracing::{debug};
 use mcpw::*;
 
-fn main() -> result::Result<(), Box<dyn std_error::Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let args = get_args();
     conditionally_enable_debugging(&args);
     debug!("Tool specs passed in: {}", args.tool_specs);
