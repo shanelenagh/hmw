@@ -101,8 +101,7 @@ async fn mcp_delete_session_route(State(mut state): State<AppState>, headers: He
         return err_response;
     } 
     if let Some(session_id_header) = headers.get("Mcp-Session-Id") {
-        let session_id = session_id_header.to_str().unwrap();
-        state.sessions.remove(session_id);
+        state.sessions.remove(session_id_header.to_str().unwrap());
     }
     return (StatusCode::OK).into_response();
 } 
@@ -112,7 +111,7 @@ fn validate_session(id: &RequestId, headers: &HeaderMap, sessions: &HashMap<Stri
         let session_id = session_id_header.to_str().unwrap();
         if !sessions.contains_key(session_id) {
             return Err((StatusCode::NOT_FOUND, axum::Json(jsonrpc_error(
-                id.clone(), -32000, "Invalid or expired session ID provided in Mcp-Session-Id header".to_string()))).into_response());
+                id.clone(), -32000, "Invalid or expired session ID provided in Mcp-Session-Id header: ".to_string() + session_id))).into_response());
         }
     } else {
         return Err((StatusCode::BAD_REQUEST, axum::Json(jsonrpc_error(
