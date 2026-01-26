@@ -4,3 +4,13 @@ members = [
     "stdio",
     "network"
 ]
+resolver = "3"
+
+[profile.release]
+strip = true
+# Below makes EXE more petit
+lto = "fat"
+codegen-units = 1
+incremental = false
+# Trades file size decrease for decreased performance
+#opt-level = "z"
